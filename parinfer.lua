@@ -663,5 +663,7 @@ end
 
 M.version = '0.1.0'
 M.indentMode = indentMode
-M.parentMode = parentMode
+M.parenMode = parenMode
 M.smartMode = smartMode
+
+return M

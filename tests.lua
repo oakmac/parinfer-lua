@@ -21,6 +21,16 @@ local smartModeCases = json.decode(readFile('./test-cases/smart-mode.json'))
 
 -- NOTE: this is named "assertStructure" in parinfer test.js
 function assertStructure2 (actual, expected)
+
+  --print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
+  --print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
+  --print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
+  --print(inspect(actual))
+  --print(inspect(expected))
+  --print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
+  --print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
+  --print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
+
   lu.assertEquals(actual.text, expected.text)
   lu.assertEquals(actual.success, expected.success)
   lu.assertEquals(actual.cursorX, expected.cursorX)
@@ -72,7 +82,7 @@ function assertStructure1 (testCase, mode)
     result = parinfer.smartMode(inputText, opts)
   end
   
-  assertStructure2(result, expectedResult)
+  assertStructure2(result, expected)
   
   -- FIXME: not checking paren trails after this main check
   -- (causing problems, and not a priority at time of writing)

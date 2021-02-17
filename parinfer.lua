@@ -13,6 +13,9 @@ local inspect = require("libs/inspect")
 
 local M = {}
 
+-- forward declarations
+local splitLines
+
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- Lua Helpers
 
@@ -136,7 +139,7 @@ local function getInitialResult(text, options, mode, smart)
         origText = text,
         origCursorX = UINT_NULL,
         origCursorLine = UINT_NULL,
-        inputLines = text.split(LINE_ENDING_REGEX), -- FIXME: need to write "split" function
+        inputLines = splitLines(text),
         inputLineNo = -1,
         inputX = -1,
         lines = {},
@@ -266,7 +269,7 @@ local function cacheErrorPos(result, errorName)
     return e
 end
 
-local function error2(result, errorName)
+local function createError(result, errorName)
     -- TODO: write me
 end
 
@@ -285,7 +288,7 @@ assert(strJoin({}, "z") == "")
 assert(strJoin({}, "") == "")
 
 -- modified from penlight: https://tinyurl.com/37fqwxy8
-local function splitLines(s)
+splitLines = function(s)
     local res = {}
     local pos = 1
     while true do
@@ -333,6 +336,8 @@ assert(repeatString("", 5) == "")
 
 local function getLineEnding(text)
     -- TODO: write me
+
+    return "\n"
 end
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -509,7 +514,39 @@ end
 -- Character Dispatch
 
 local function onChar(result)
-    -- TODO: write me
+    local ch = result.ch
+    result.isEscaped = false
+
+    if result.isEscaping then
+        afterBackslash(result)
+    elseif isOpenParen(ch) then
+        onOpenParen(result)
+    elseif isCloseParen(ch) then
+        onCloseParen(result)
+    elseif ch == DOUBLE_QUOTE then
+        onQuote(result)
+    elseif isCommentChar(ch, result.commentChars) then
+        onCommentChar(result)
+    elseif ch == BACKSLASH then
+        onBackslash(result)
+    elseif ch == TAB then
+        onTab(result)
+    elseif ch == NEWLINE then
+        onNewline(result)
+    end
+
+    ch = result.ch
+
+    result.isInCode = (not result.isInComment) and (not result.isInStr)
+
+    if isClosable(result) then
+        resetParenTrail(result, result.lineNo, result.x + string.len(ch))
+    end
+
+    local state = result.trackingArgTabStop
+    if state then
+        trackArgTabStop(result, state)
+    end
 end
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -641,23 +678,103 @@ end
 -- High-level processing functions
 
 local function processChar(result, ch)
-    -- TODO: write me
+    local origCh = ch
+
+    result.ch = ch
+    result.skipChar = false
+
+    handleChangeDelta(result)
+
+    if result.trackingIndent then
+        checkIndent(result)
+    end
+
+    if result.skipChar then
+        result.ch = ""
+    else
+        onChar(result)
+    end
+
+    commitChar(result, origCh)
 end
 
 local function processLine(result, lineNo)
-    -- TODO: write me
+    initLine(result)
+
+    local line = result.inputLines[lineNo]
+    table.insert(result.lines, line)
+
+    setTabStops(result)
+
+    for idx = 1, string.len(line) do
+        result.inputX = idx
+        local ch = string.sub(line, idx, idx)
+        processChar(result, ch)
+    end
+    processChar(result, NEWLINE)
+
+    if not result.forceBalance then
+        checkUnmatchedOutsideParenTrail(result)
+        checkLeadingCloseParen(result)
+    end
+
+    if result.lineNo == result.parenTrail.lineNo then
+        finishNewParenTrail(result)
+    end
 end
 
 local function finalizeResult(result)
-    -- TODO: write me
+    if result.quoteDanger then
+        error(createError(result, ERROR_QUOTE_DANGER))
+    end
+    if result.isInStr then
+        error(createError(result, ERROR_UNCLOSED_QUOTE))
+    end
+
+    if not isTableEmpty(result.parenStack) then
+        if (result.mode == PAREN_MODE) then
+            error(createError(result, ERROR_UNCLOSED_PAREN))
+        end
+    end
+    if result.mode == INDENT_MODE then
+        initLine(result)
+        onIndent(result)
+    end
+
+    result.success = true
 end
 
 local function processError(result, e)
     -- TODO: write me
 end
 
+local function processTextInternal(result)
+    for idx, line in pairs(result.inputLines) do
+        result.inputLineNo = idx
+        processLine(result, idx)
+    end
+
+    finalizeResult(result)
+end
+
 local function processText(text, options, mode, smart)
-    -- TODO: write me
+    local result = getInitialResult(text, options, mode, smart)
+    local status, errOrResult =
+        pcall(
+        function()
+            return processTextInternal(result)
+        end
+    )
+
+    if status then
+        return result
+    else
+        print("FIXME: do error handling here")
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        return nil
+    end
 end
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -668,7 +785,7 @@ local function publicResult(result)
     local final
     if result.success == true then
         final = {
-            text = result.lines.join(lineEnding),
+            text = strJoin(result.lines, lineEnding),
             cursorX = result.cursorX,
             cursorLine = result.cursorLine,
             success = true,

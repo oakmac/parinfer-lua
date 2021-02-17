@@ -19,7 +19,7 @@ local M = {}
 
 -- TODO: surely there must be a faster way to determine table length that is not O(n)?
 
-function getTableSize(t)
+function size(t)
   local count = 0
   for _, __ in pairs(t) do
     count = count + 1
@@ -27,9 +27,10 @@ function getTableSize(t)
   return count
 end
 
-assert(getTableSize({}) == 0)
-assert(getTableSize({"a", "b"}) == 2)
-assert(getTableSize({ a = "a", b = "b"}) == 2)
+assert(size({}) == 0)
+assert(size({"a", "b"}) == 2)
+assert(size({"a", "b", "c", "d", "e"}) == 5)
+assert(size({ a = "a", b = "b"}) == 2)
 
 local function isTableEmpty(t)
   for _, __ in pairs(t) do
@@ -86,7 +87,7 @@ assert(isString('s'))
 assert(not isString(true))
 
 local function isChar (c) 
-  return isString(c) and c:len() == 1
+  return isString(c) and string.len(c) == 1
 end
 
 assert(isChar('s'))
@@ -138,8 +139,7 @@ local function getInitialResult (text, options, mode, smart)
       origCursorX = UINT_NULL, 
       origCursorLine = UINT_NULL, 
 
-      inputLines = 
-      text.split(LINE_ENDING_REGEX),
+      inputLines = text.split(LINE_ENDING_REGEX), -- FIXME: need to write "split" function
       inputLineNo = -1, 
       inputX = -1, 
 
@@ -292,12 +292,24 @@ end
 -- String Operations
 
 local function replaceWithinString (orig, startIdx, endIdx, replace) 
-  -- TODO: write me
+  local head = string.sub(orig, 1, startIdx)
+  local tail = string.sub(orig, endIdx + 1, -1)
+  return head .. replace .. tail
 end
 
+assert(replaceWithinString('aaa', 0, 2, '') == 'a')
+assert(replaceWithinString('aaa', 0, 1, 'b') == 'baa')
+assert(replaceWithinString('aaa', 0, 2, 'b') == 'ba')
+
 local function repeatString (text, n)
-  -- TODO: write me
+  return string.rep(text, n)
 end
+
+assert(repeatString('a', 2) == 'aa')
+assert(repeatString('aa', 3) == 'aaaaaa')
+assert(repeatString('aa', 0) == '')
+assert(repeatString('', 0) == '')
+assert(repeatString('', 5) == '')
 
 local function getLineEnding (text) 
   -- TODO: write me
@@ -306,15 +318,18 @@ end
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- Line Operations
 
-local function isCursorAffected (result, start, end2) 
-  -- TODO: write me
+local function isCursorAffected (result, start, endIdx) 
+  if (result.cursorX == start and result.cursorX == endIdx) then
+    return result.cursorX == 0
+  end
+  return result.cursorX >= endIdx
 end
 
 local function shiftCursorOnEdit (result, lineNo, start, end2, replace)
   -- TODO: write me
 end
 
-local function replaceWithinLin (result, lineNo, start, end2, replace) 
+local function replaceWithinLine (result, lineNo, start, end2, replace) 
   -- TODO: write me
 end
 
@@ -334,12 +349,39 @@ end
 -- Misc Util
 
 local function clamp (val, minN, maxN) 
-  -- TODO: write me
+    if (minN ~= UINT_NULL) then
+      val = math.max(minN, val)
+    end
+    if (maxN ~= UINT_NULL) then
+      val = math.min(maxN, val)
+    end
+    return val
 end
 
+assert(clamp(1, 3, 5) == 3)
+assert(clamp(9, 3, 5) == 5)
+assert(clamp(1, 3, UINT_NULL) == 3)
+assert(clamp(5, 3, UINT_NULL) == 5)
+assert(clamp(1, UINT_NULL, 5) == 1)
+assert(clamp(9, UINT_NULL, 5) == 5)
+assert(clamp(1, UINT_NULL, UINT_NULL) == 1)
+
 local function peek (arr, idxFromBack)
-  -- TODO: write me
+  idxFromBack = idxFromBack + 1
+  local maxIdx = size(arr)
+  if (idxFromBack > maxIdx) then
+    return nil
+  end
+  return arr[maxIdx - idxFromBack + 1]
 end
+
+assert(peek({'a'}, 0) == 'a')
+assert(peek({'a'}, 1) == nil)
+assert(peek({'a', 'b', 'c'}, 0) == 'c')
+assert(peek({'a', 'b', 'c'}, 1) == 'b')
+assert(peek({'a', 'b', 'c'}, 5) == nil)
+assert(peek({}, 0) == nil)
+assert(peek({}, 1) == nil)
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- Character Predicates

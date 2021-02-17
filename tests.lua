@@ -3,9 +3,6 @@ local json = require('libs/json')
 local inspect = require('libs/inspect')
 local parinfer = require('parinfer')
 
--- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
--- Helpers
-
 -- https://stackoverflow.com/a/31857671/2137320
 local function readFile(path)
     local file = io.open(path, "rb") -- r read mode and b binary mode
@@ -15,90 +12,15 @@ local function readFile(path)
     return content
 end
 
+-- TODO: add additional smart mode cases here
+
 -- load test cases JSON
 local indentModeCases = json.decode(readFile('./test-cases/indent-mode.json'))
 local parenModeCases = json.decode(readFile('./test-cases/paren-mode.json'))
 local smartModeCases = json.decode(readFile('./test-cases/smart-mode.json'))
 
-
-
-
-  --for _key, testCase in pairs(indentModeCases) do
-  --
-  --  print(inspect(testCase))
-  --  print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-  --  
-  --  lu.assertTrue(true)
-  --  
-  --end
-
-
-
-
---TestAdd = {}
---    function TestAdd:testAddPositive()
---        lu.assertEquals(add(1,1),2)
---    end
---
---    function TestAdd:testAddZero()
---        lu.assertEquals(add(1,0),0)
---        lu.assertEquals(add(0,5),0)
---        lu.assertEquals(add(0,0),0)
---    end
---
---    function TestAdd:testAddError()
---        lu.assertErrorMsgContains('Can only add positive or nil numbers, received 2 and -3', add, 2, -3)
---    end
---
---    function TestAdd:testAdder()
---        f = adder(3)
---        lu.assertIsFunction( f )
---        lu.assertEquals( f(2), 5 )
---    end
---
---TestDiv = {}
---    function TestDiv:testDivPositive()
---        lu.assertEquals(div(4,2),2)
---    end
---
---    function TestDiv:testDivZero()
---        lu.assertEquals(div(4,0),0)
---        lu.assertEquals(div(0,5),0)
---        lu.assertEquals(div(0,0),0)
---    end
---
---    function TestDiv:testDivError()
---        lu.assertErrorMsgContains('Can only divide positive or nil numbers, received 2 and -3', div, 2, -3)
---    end
-
-
---TestWithFailures = {}
---    function TestWithFailures:testFail1()
---        lu.assertEquals( "toto", "titi")
---    end
---
---    function TestWithFailures:testFail2()
---        local a=1
---        local b='toto'
---        local c = a + b -- oops, can not add string and numbers
---        return c
---    end
-
-function testModuleBasics ()
-  lu.assertIsTable(indentModeCases, 'Unable to load Indent Mode Test cases. Maybe your JSON is wrong?')
-  lu.assertIsTable(parenModeCases, 'Unable to load Paren Mode Test cases. Maybe your JSON is wrong?')
-  lu.assertIsTable(smartModeCases, 'Unable to load Smart Mode Test cases. Maybe your JSON is wrong?')
-  
-  lu.assertIsTable(parinfer, 'Unable to load the parinfer module. Maybe invalid syntax?')
-  lu.assertIsFunction(parinfer.indentMode)
-  lu.assertIsFunction(parinfer.parenMode)
-  lu.assertIsFunction(parinfer.smartMode)
-  
-  -- TODO: check version is specified?
-end
-
 -- NOTE: this is named "assertStructure" in parinfer test.js
-function assertStructure2 (actual, expected, description)
+function assertStructure2 (actual, expected)
   lu.assertEquals(actual.text, expected.text)
   lu.assertEquals(actual.success, expected.success)
   lu.assertEquals(actual.cursorX, expected.cursorX)
@@ -162,6 +84,24 @@ function assertStructure1 (testCase, mode)
   if (expected.error or expected.tabStops or expected.parenTrails or testCase.options.changes) then
     return
   end
+  
+  -- TODO: idempotence check
+  -- TODO: cross-mode check
+end
+
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-- LuaUnit Tests
+
+function testModuleBasics ()
+  lu.assertIsTable(indentModeCases, 'Unable to load Indent Mode Test cases. Maybe your JSON is wrong?')
+  lu.assertIsTable(parenModeCases, 'Unable to load Paren Mode Test cases. Maybe your JSON is wrong?')
+  lu.assertIsTable(smartModeCases, 'Unable to load Smart Mode Test cases. Maybe your JSON is wrong?')
+  
+  lu.assertIsTable(parinfer, 'Unable to load the parinfer module. Maybe invalid syntax?')
+  lu.assertIsFunction(parinfer.indentMode)
+  lu.assertIsFunction(parinfer.parenMode)
+  lu.assertIsFunction(parinfer.smartMode)
+  lu.assertIsString(parinfer.version)
 end
 
 function testIndentMode ()

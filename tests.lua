@@ -31,6 +31,11 @@ function assertStructure2 (actual, expected)
   --print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
   --print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
 
+  lu.assertIsTable(actual)
+  lu.assertIsTable(expected)
+  lu.assertIsString(actual.text)
+  lu.assertIsString(expected.text)
+  
   lu.assertEquals(actual.text, expected.text)
   lu.assertEquals(actual.success, expected.success)
   lu.assertEquals(actual.cursorX, expected.cursorX)

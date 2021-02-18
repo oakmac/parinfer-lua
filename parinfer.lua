@@ -15,7 +15,7 @@ local inspect = require("libs/inspect")
 local M = {}
 
 -- forward declarations
-local splitLines, resetParenTrail, rememberParenTrail
+local splitLines, resetParenTrail, rememberParenTrail, peek
 
 local trace = false
 
@@ -543,7 +543,7 @@ assert(clamp(1, UINT_NULL, 5) == 1)
 assert(clamp(9, UINT_NULL, 5) == 5)
 assert(clamp(1, UINT_NULL, UINT_NULL) == 1)
 
-local function peek(arr, idxFromBack)
+peek = function (arr, idxFromBack)
     idxFromBack = idxFromBack + 1
     local maxIdx = size(arr)
     if (idxFromBack > maxIdx) then

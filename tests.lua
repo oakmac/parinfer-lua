@@ -71,7 +71,7 @@ function assertStructure1 (testCase, mode)
   -- We are simply setting it to ensure it is constructed in a way that doesn't
   -- throw an exception.
   opts.returnParens = true
-  
+
   -- run Parinfer
   local result
   if mode == 'indent' then
@@ -81,20 +81,20 @@ function assertStructure1 (testCase, mode)
   elseif mode == 'smart' then
     result = parinfer.smartMode(inputText, opts)
   end
-  
+
   assertStructure2(result, expected)
-  
+
   -- FIXME: not checking paren trails after this main check
   -- (causing problems, and not a priority at time of writing)
   if (result.parenTrails) then
     actual.parenTrails = nil
   end
-  
+
   -- bypass the next checks if these conditions exist
   if (expected.error or expected.tabStops or expected.parenTrails or testCase.options.changes) then
     return
   end
-  
+
   -- TODO: idempotence check
   -- TODO: cross-mode check
 end
@@ -106,7 +106,7 @@ function testModuleBasics ()
   lu.assertIsTable(indentModeCases, 'Unable to load Indent Mode Test cases. Maybe your JSON is wrong?')
   lu.assertIsTable(parenModeCases, 'Unable to load Paren Mode Test cases. Maybe your JSON is wrong?')
   lu.assertIsTable(smartModeCases, 'Unable to load Smart Mode Test cases. Maybe your JSON is wrong?')
-  
+
   lu.assertIsTable(parinfer, 'Unable to load the parinfer module. Maybe invalid syntax?')
   lu.assertIsFunction(parinfer.indentMode)
   lu.assertIsFunction(parinfer.parenMode)

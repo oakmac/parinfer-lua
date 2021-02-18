@@ -5,10 +5,11 @@
 -- More information about Parinfer can be found here:
 -- http://shaunlebron.github.io/parinfer/
 --
--- Copyright (c) 2021, Chris Oakman and other contributors
+-- Copyright (c) 2021, Chris Oakman
 -- Released under the ISC license
 -- https://github.com/oakmac/parinfer-lua/blob/master/LICENSE.md
 
+-- TODO: comment this out before publication; used for development debugging
 local inspect = require("libs/inspect")
 
 local M = {}
@@ -23,7 +24,7 @@ local splitLines
 
 function size(t)
     local count = 0
-    for _, __ in pairs(t) do
+    for _key, _val in pairs(t) do
         count = count + 1
     end
     return count
@@ -35,7 +36,7 @@ assert(size({"a", "b", "c", "d", "e"}) == 5)
 assert(size({a = "a", b = "b"}) == 2)
 
 local function isTableEmpty(t)
-    for _, __ in pairs(t) do
+    for _key, _val in pairs(t) do
         return false
     end
     return true
@@ -73,13 +74,20 @@ local function isBoolean(x)
     return x == true or x == false
 end
 
-local function isArray(x)
-    -- TODO: write me
+local function isTable(t)
+    return type(t) == "table"
 end
 
-local function isInteger(x)
-    -- TODO: write me
+local function isInteger(i)
+    return type(i) == "number" and i == math.floor(i)
 end
+
+assert(isInteger(1))
+assert(isInteger(-97))
+assert(not isInteger(3.14))
+assert(not isInteger())
+assert(not isInteger({}))
+assert(not isInteger("6"))
 
 local function isString(s)
     return type(s) == "string"
@@ -96,9 +104,23 @@ assert(isChar("s"))
 assert(not isChar("xx"))
 assert(not isChar(true))
 
-local function isArrayOfChars(arr)
-    -- TODO: write me
+local function isTableOfChars(t)
+    if not isTable(t) then
+        return false
+    end
+
+    for _key, ch in pairs(t) do
+        if not isChar(ch) then
+            return false
+        end
+    end
+
+    return true
 end
+
+assert(isTableOfChars({}))
+assert(isTableOfChars({"a", "b", "c"}))
+assert(not isTableOfChars({"a", "b", "ccc"}))
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- Options Structure
@@ -112,7 +134,22 @@ local function transformChanges(changes)
 end
 
 local function parseOptions(options)
-    -- TODO: write me
+    if (not isTable(options)) then
+        options = {}
+    end
+
+    return {
+        changes = options.changes,
+        commentChars = options.commentChars,
+        cursorLine = options.cursorLine,
+        cursorX = options.cursorX,
+        forceBalance = options.forceBalance,
+        partialResult = options.partialResult,
+        prevCursorLine = options.prevCursorLine,
+        prevCursorX = options.prevCursorX,
+        returnParens = options.returnParens,
+        selectionStartLine = options.selectionStartLine
+    }
 end
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -175,7 +212,7 @@ local function getInitialResult(text, options, mode, smart)
         maxIndent = UINT_NULL,
         indentDelta = 0,
         trackingArgTabStop = nil,
-        error2 = {
+        ["error2"] = {
             name = nil,
             message = nil,
             lineNo = nil,
@@ -210,7 +247,7 @@ local function getInitialResult(text, options, mode, smart)
         if (isInteger(options.selectionStartLine)) then
             result.selectionStartLine = options.selectionStartLine
         end
-        if (isArray(options.changes)) then
+        if (isTable(options.changes)) then
             result.changes = transformChanges(options.changes)
         end
         if (isBoolean(options.partialResult)) then
@@ -225,7 +262,7 @@ local function getInitialResult(text, options, mode, smart)
         if (isChar(options.commentChars)) then
             result.commentChars = {options.commentChars}
         end
-        if (isArrayOfChars(options.commentChars)) then
+        if (isTableOfChars(options.commentChars)) then
             result.commentChars = options.commentChars
         end
     end
@@ -270,7 +307,63 @@ local function cacheErrorPos(result, errorName)
 end
 
 local function createError(result, errorName)
-    -- TODO: write me
+    local cache = result.errorPosCache[name]
+
+    local keyLineNo = "inputLineNo"
+    if result.partialResult then
+        keyLineNo = "lineNo"
+    end
+
+    local keyX = "inputX"
+    if result.partialResult then
+        keyX = "x"
+    end
+
+    local newLineNo = result[keyLineNo]
+    if cache then
+        newLineNo = cache[keyLineNo]
+    end
+
+    local newX = result[keyX]
+    if cache then
+        newX = cache[keyX]
+    end
+
+    local e = {
+        parinferError = true,
+        name = name,
+        message = errorMessages[name],
+        lineNo = newLineNo,
+        x = newX
+    }
+    local opener = peek(result.parenStack, 0)
+
+    if name == ERROR_UNMATCHED_CLOSE_PAREN then
+        -- extra error info for locating the open-paren that it should've matched
+        cache = result.errorPosCache[ERROR_UNMATCHED_OPEN_PAREN]
+        if cache or opener then
+            local newLineNo2 = opener[keyLineNo]
+            if cache then
+                newLineNo2 = cache[keyLineNo]
+            end
+
+            local newX2 = opener[keyX]
+            if cache then
+                newX2 = cache[keyX]
+            end
+
+            e.extra = {
+                name = ERROR_UNMATCHED_OPEN_PAREN,
+                lineNo = newLineNo2,
+                x = newX2
+            }
+        end
+    elseif name == ERROR_UNCLOSED_PAREN then
+        e.lineNo = opener[keyLineNo]
+        e.x = opener[keyX]
+    end
+
+    return e
 end
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -350,24 +443,58 @@ local function isCursorAffected(result, start, endIdx)
     return result.cursorX >= endIdx
 end
 
-local function shiftCursorOnEdit(result, lineNo, start, end2, replace)
-    -- TODO: write me
+local function shiftCursorOnEdit(result, lineNo, startIdx, endIdx, replace)
+    local oldLength = endIdx - startIdx
+    local newLength = string.len(replace)
+    local dx = newLength - oldLength
+
+    if
+        (dx ~= 0 and result.cursorLine == lineNo and result.cursorX ~= UINT_NULL and
+            isCursorAffected(result, startIdx, endIdx))
+     then
+        result.cursorX = result.cursorX + dx
+    end
 end
 
-local function replaceWithinLine(result, lineNo, start, end2, replace)
-    -- TODO: write me
+local function replaceWithinLine(result, lineNo, startIdx, endIdx, replace)
+    local line = result.lines[lineNo]
+    local newLine = replaceWithinString(line, startIdx, endIdx, replace)
+    result.lines[lineNo] = newLine
+
+    shiftCursorOnEdit(result, lineNo, startIdx, endIdx, replace)
 end
 
 local function insertWithinLine(result, lineNo, idx, insert)
-    -- TODO: write me
+    replaceWithinLine(result, lineNo, idx, idx, insert)
 end
 
 local function initLine(result)
-    -- TODO: write me
+    result.x = 0
+    result.lineNo = result.lineNo + 1
+
+    -- reset line-specific state
+    result.indentX = UINT_NULL
+    result.commentX = UINT_NULL
+    result.indentDelta = 0
+    result.errorPosCache[ERROR_UNMATCHED_CLOSE_PAREN] = nil
+    result.errorPosCache[ERROR_UNMATCHED_OPEN_PAREN] = nil
+    result.errorPosCache[ERROR_LEADING_CLOSE_PAREN] = nil
+
+    result.trackingArgTabStop = nil
+    result.trackingIndent = not result.isInStr
 end
 
+-- if the current character has changed, commit its change to the current line.
 local function commitChar(result, origCh)
-    -- TODO: write me
+    local ch = result.ch
+    local origChLength = string.len(origCh)
+    local chLength = string.len(ch)
+
+    if origCh ~= ch then
+        replaceWithinLine(result, result.lineNo, result.x, result.x + origChLength, ch)
+        result.indentDelta = result.indentDelta - origChLength - chLength
+    end
+    result.x = result.x + chLength
 end
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -426,31 +553,41 @@ assert(isCloseParen("}") == true)
 assert(isCloseParen("a") == false)
 
 local function isValidCloseParen(parenStack, ch)
-    --if table.getn(parenStack) == 0 then
-    --  return false
-    --end
-    --local firstItemInParenStack = peek(parenStack, 0)
-    --return firstItemInParenStack.ch == MATCH_PAREN[ch]
-end
+    if isTableEmpty(parenStack) then
+        return false
+    end
 
---local exampleParenStack = {
---  { ch = '(' }
---}
---
---assert(not isValidCloseParen(exampleParenStack, 'x'))
+    local lastOnStack = peek(parenStack, 0)
+    return lastOnStack.ch == MATCH_PAREN[ch]
+end
 
 local function isWhitespace(result)
     local ch = result.ch
     return (not result.isEscaped) and (ch == BLANK_SPACE or ch == DOUBLE_SPACE)
 end
 
+-- can this be the last code character of a list?
 local function isClosable(result)
-    -- TODO: write me
+    local ch = result.ch
+    local isCloser = isCloseParen(ch) and not result.isEscaped
+    return result.isInCode and not isWhitespace(result) and ch ~= "" and not isCloser
 end
 
 local function isCommentChar(ch, commentChars)
-    -- TODO: write me
+    for _key, commentCh in pairs(commentChars) do
+        if ch == commentCh then
+            return true
+        end
+    end
+    return false
 end
+
+assert(isCommentChar(";", {";"}))
+assert(isCommentChar(";", {";", "#"}))
+assert(isCommentChar("#", {";", "#"}))
+assert(not isCommentChar("x", {";"}))
+assert(not isCommentChar("", {";"}))
+assert(not isCommentChar("#", {";", "a"}))
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- Advanced Character Operations
@@ -467,47 +604,145 @@ end
 -- Literal Character Events
 
 local function onOpenParen(result)
-    -- TODO: write me
+    if result.isInCode then
+        local opener = {
+            inputLineNo = result.inputLineNo,
+            inputX = result.inputX,
+            lineNo = result.lineNo,
+            x = result.x,
+            ch = result.ch,
+            indentDelta = result.indentDelta,
+            maxChildIndent = UINT_NULL
+        }
+
+        if (result.returnParens) then
+            opener.children = {}
+            opener.closer = {
+                lineNo = UINT_NULL,
+                x = UINT_NULL,
+                ch = ""
+            }
+
+            local parent = peek(result.parenStack, 0)
+            if parent then
+                parent = parent.children
+            else
+                parent = result.parens
+            end
+
+            table.insert(parent, opener)
+        end
+
+        table.insert(result.parenStack, opener)
+        result.trackingArgTabStop = "space"
+    end
 end
 
 local function setCloser(opener, lineNo, x, ch)
-    -- TODO: write me
+    opener.closer.lineNo = lineNo
+    opener.closer.x = x
+    opener.closer.ch = ch
 end
 
 local function onMatchedCloseParen(result)
-    -- TODO: write me
+    local opener = peek(result.parenStack, 0)
+    if result.returnParens then
+        setCloser(opener, result.lineNo, result.x, result.ch)
+    end
+
+    result.parenTrail.endX = result.x + 1
+    table.insert(result.parenTrail.openers, opener)
+
+    if (result.mode == INDENT_MODE and result.smart and checkCursorHolding(result)) then
+        local origStartX = result.parenTrail.startX
+        local origEndX = result.parenTrail.endX
+        local origOpeners = result.parenTrail.openers
+        resetParenTrail(result, result.lineNo, result.x + 1)
+        result.parenTrail.clamped.startX = origStartX
+        result.parenTrail.clamped.endX = origEndX
+        result.parenTrail.clamped.openers = origOpeners
+    end
+    table.remove(result.parenStack)
+    result.trackingArgTabStop = nil
 end
 
 local function onUnmatchedCloseParen(result)
-    -- TODO: write me
+    if (result.mode == PAREN_MODE) then
+        local trail = result.parenTrail
+        local inLeadingParenTrail = (trail.lineNo == result.lineNo) and (trail.startX == result.indentX)
+        local canRemove = result.smart and inLeadingParenTrail
+        if (not canRemove) then
+            error(createError(result, ERROR_UNMATCHED_CLOSE_PAREN))
+        end
+    elseif (result.mode == INDENT_MODE and not result.errorPosCache[ERROR_UNMATCHED_CLOSE_PAREN]) then
+        cacheErrorPos(result, ERROR_UNMATCHED_CLOSE_PAREN)
+        local opener = peek(result.parenStack, 0)
+        if opener then
+            local e = cacheErrorPos(result, ERROR_UNMATCHED_OPEN_PAREN)
+            e.inputLineNo = opener.inputLineNo
+            e.inputX = opener.inputX
+        end
+    end
+    result.ch = ""
 end
 
 local function onCloseParen(result)
-    -- TODO: write me
+    if result.isInCode then
+        if isValidCloseParen(result.parenStack, result.ch) then
+            onMatchedCloseParen(result)
+        else
+            onUnmatchedCloseParen(result)
+        end
+    end
 end
 
 local function onTab(result)
-    -- TODO: write me
+    if result.isInCode then
+        result.ch = DOUBLE_SPACE
+    end
 end
 
 local function onCommentChar(result)
-    -- TODO: write me
+    if result.isInCode then
+        result.isInComment = true
+        result.commentX = result.x
+        result.trackingArgTabStop = nil
+    end
 end
 
 local function onNewline(result)
-    -- TODO: write me
+    result.isInComment = false
+    result.ch = ""
 end
 
 local function onQuote(result)
-    -- TODO: write me
+    if result.isInStr then
+        result.isInStr = false
+    elseif (result.isInComment) then
+        result.quoteDanger = not result.quoteDanger
+        if (result.quoteDanger) then
+            cacheErrorPos(result, ERROR_QUOTE_DANGER)
+        end
+    else
+        result.isInStr = true
+        cacheErrorPos(result, ERROR_UNCLOSED_QUOTE)
+    end
 end
 
 local function onBackslash(result)
-    -- TODO: write me
+    result.isEscaping = true
 end
 
 local function afterBackslash(result)
-    -- TODO: write me
+    result.isEscaping = false
+    result.isEscaped = true
+
+    if (result.ch == NEWLINE) then
+        if (result.isInCode) then
+            error(createError(result, ERROR_EOL_BACKSLASH))
+        end
+        onNewline(result)
+    end
 end
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -631,23 +866,67 @@ end
 -- Indentation Functions
 
 local function addIndent(result, delta)
-    -- TODO: write me
+    local origIndent = result.x
+    local newIndent = origIndent + delta
+    local indentStr = repeatString(BLANK_SPACE, newIndent)
+    replaceWithinLine(result, result.lineNo, 0, origIndent, indentStr)
+    result.x = newIndent
+    result.indentX = newIndent
+    result.indentDelta = result.indentDelta + delta
 end
 
 local function shouldAddOpenerIndent(result, opener)
-    -- TODO: write me
+    -- Don't add opener.indentDelta if the user already added it.
+    -- (happens when multiple lines are indented together)
+    return opener.indentDelta ~= result.indentDelta
 end
 
 local function correctIndent(result)
-    -- TODO: write me
+    local origIndent = result.x
+    local newIndent = origIndent
+    local minIndent = 0
+    local maxIndent = result.maxIndent
+
+    local opener = peek(result.parenStack, 0)
+    if opener then
+        minIndent = opener.x + 1
+        maxIndent = opener.maxChildIndent
+        if shouldAddOpenerIndent(result, opener) then
+            newIndent = newIndent + opener.indentDelta
+        end
+    end
+
+    newIndent = clamp(newIndent, minIndent, maxIndent)
+
+    if newIndent ~= origIndent then
+        addIndent(result, newIndent - origIndent)
+    end
 end
 
 local function onIndent(result)
-    -- TODO: write me
+    result.indentX = result.x
+    result.trackingIndent = false
+
+    if (result.quoteDanger) then
+        error(createError(result, ERROR_QUOTE_DANGER))
+    end
+
+    if result.mode == INDENT_MODE then
+        correctParenTrail(result, result.x)
+
+        local opener = peek(result.parenStack, 0)
+        if opener and shouldAddOpenerIndent(result, opener) then
+            addIndent(result, opener.indentDelta)
+        end
+    elseif result.mode == PAREN_MODE then
+        correctIndent(result)
+    end
 end
 
 local function checkLeadingCloseParen(result)
-    -- TODO: write me
+    if result.errorPosCache[ERROR_LEADING_CLOSE_PAREN] and result.parenTrail.lineNo == result.lineNo then
+        error(createError(result, ERROR_LEADING_CLOSE_PAREN))
+    end
 end
 
 local function onLeadingCloseParen(result)
@@ -699,10 +978,17 @@ local function processChar(result, ch)
 end
 
 local function processLine(result, lineNo)
+
+    --print(inspect(result))
+    --print('33333333333333333333333333333333333333333333333333333333333')
+    
     initLine(result)
 
     local line = result.inputLines[lineNo]
     table.insert(result.lines, line)
+
+    --print(inspect(result))
+    --print("****************************************************")
 
     setTabStops(result)
 
@@ -750,6 +1036,10 @@ end
 
 local function processTextInternal(result)
     for idx, line in pairs(result.inputLines) do
+        --print(idx)
+        --print(line)
+        --print('=========================================')
+
         result.inputLineNo = idx
         processLine(result, idx)
     end
@@ -759,6 +1049,10 @@ end
 
 local function processText(text, options, mode, smart)
     local result = getInitialResult(text, options, mode, smart)
+    
+    print(inspect(result))
+    print('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@')
+    
     local status, errOrResult =
         pcall(
         function()

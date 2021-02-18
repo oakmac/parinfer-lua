@@ -15,7 +15,7 @@ local inspect = require("libs/inspect")
 local M = {}
 
 -- forward declarations
-local splitLines, resetParenTrail
+local splitLines, resetParenTrail, rememberParenTrail
 
 local trace = false
 
@@ -465,7 +465,7 @@ local function replaceWithinLine(result, lineNo, startIdx, endIdx, replace)
     local line = result.lines[lineNo]
 
     if trace then
-        print(inspect(result))
+        -- print(inspect(result))
         print("[TRACE] replaceWithinLine")
     end
 
@@ -473,6 +473,10 @@ local function replaceWithinLine(result, lineNo, startIdx, endIdx, replace)
     result.lines[lineNo] = newLine
 
     shiftCursorOnEdit(result, lineNo, startIdx, endIdx, replace)
+    
+    if trace then
+        print("[TRACE] replaceWithinLine finished here")
+    end    
 end
 
 local function insertWithinLine(result, lineNo, idx, insert)
@@ -502,6 +506,10 @@ local function commitChar(result, origCh)
     local chLength = string.len(ch)
 
     if origCh ~= ch then
+        if trace then
+            print("[TRACE] calling replaceWithinLine inside commitChar")
+        end
+    
         replaceWithinLine(result, result.lineNo, result.x, result.x + origChLength, ch)
         result.indentDelta = result.indentDelta - origChLength - chLength
     end
@@ -856,40 +864,105 @@ local function clampParenTrailToCursor(result)
 end
 
 local function popParenTrail(result)
-    -- TODO: write me
-    print("UNPORTED FUNCTION: popParenTrail -----------------------------------")
+    local startX = result.parenTrail.startX
+    local endX = result.parenTrail.endX
+
+    if (startX == endX) then
+        return
+    else
+        local openers = result.parenTrail.openers
+        while not isTableEmpty(openers) do            
+            local itm = table.remove(openers)
+            table.insert(result.parenStack, itm)
+        end
+    end
 end
 
 local function getParentOpenerIndex(result, indentX)
-    -- TODO: write me
-    print("UNPORTED FUNCTION: getParentOpenerIndex -----------------------------------")
+    local i = 0
+    local parenStackLength = size(result.parenStack)
+    while i < parenStackLength do
+        local opener = peek(result.parenStack, i)
+
+        local currOutside = (opener.x < indentX)
+
+        local prevIndentX = indentX - result.indentDelta
+        local prevOutside = (opener.x - opener.indentDelta < prevIndentX)
+
+        local isParent = false
+
+        if (prevOutside and currOutside) then
+            isParent = true
+        elseif (not prevOutside and not currOutside) then
+            isParent = false
+        elseif (prevOutside and not currOutside) then
+            -- 1. PREVENT FRAGMENTATION
+            if (result.indentDelta == 0) then
+                -- 2. ALLOW FRAGMENTATION
+                isParent = true
+            elseif (opener.indentDelta == 0) then
+                isParent = false
+            else
+                isParent = false
+            end
+        elseif (not prevOutside and currOutside) then
+            local nextOpener = peek(result.parenStack, i + 1)
+
+            -- 1. DISALLOW ADOPTION
+            if (nextOpener and nextOpener.indentDelta <= opener.indentDelta) then
+                -- 2. ALLOW ADOPTION
+                if (indentX + nextOpener.indentDelta > opener.x) then
+                    isParent = true
+                else
+                    isParent = false
+                end
+            elseif (nextOpener and nextOpener.indentDelta > opener.indentDelta) then
+                -- 3. ALLOW ADOPTION
+                isParent = true
+            elseif (result.indentDelta > opener.indentDelta) then
+                isParent = true
+            end
+
+            -- if new parent
+            if isParent then
+                opener.indentDelta = 0
+            end
+        end
+
+        if isParent then
+            break
+        end
+
+        i = i + 1
+    end
+
+    return i
 end
 
 local function correctParenTrail(result, indentX)
-    -- TODO: write me
-    print("UNPORTED FUNCTION: correctParenTrail -----------------------------------")
+    local parens = ""
+    local index = getParentOpenerIndex(result, indentX)
 
-    --local parens = ''
-    --local index = getParentOpenerIndex(result, indentX)
+    local i = 0
+    while i < index do
+        local opener = table.remove(result.parenStack)
+        table.insert(result.parenTrail.openers, opener)
 
-    -- FIXME: not ported yet
-    --var i
-    --for (i = 0; i < index; i++) {
-    --  var opener = result.parenStack.pop()
-    --  result.parenTrail.openers.push(opener)
-    --  var closeCh = MATCH_PAREN[opener.ch]
-    --  parens += closeCh
-    --
-    --      if result.returnParens then
-    --        setCloser(opener, result.parenTrail.lineNo, result.parenTrail.startX + i, closeCh)
-    --      end
-    --    }
+        local closeCh = MATCH_PAREN[opener.ch]
+        parens = parens .. closeCh
 
-    --if result.parenTrail.lineNo ~= UINT_NULL then
-    --  replaceWithinLine(result, result.parenTrail.lineNo, result.parenTrail.startX, result.parenTrail.endX, parens)
-    --  result.parenTrail.endX = result.parenTrail.startX + parens.length
-    --  rememberParenTrail(result)
-    --end
+        if result.returnParens then
+            setCloser(opener, result.parenTrail.lineNo, result.parenTrail.startX + i, closeCh)
+        end
+
+        i = i + 1
+    end
+
+    if result.parenTrail.lineNo ~= UINT_NULL then
+        replaceWithinLine(result, result.parenTrail.lineNo, result.parenTrail.startX, result.parenTrail.endX, parens)
+        result.parenTrail.endX = result.parenTrail.startX + string.len(parens)
+        rememberParenTrail(result)
+    end
 end
 
 local function cleanParenTrail(result)
@@ -907,16 +980,24 @@ local function invalidateParenTrail(result)
 end
 
 local function checkUnmatchedOutsideParenTrail(result)
-    -- TODO: write me
-    print("UNPORTED FUNCTION: checkUnmatchedOutsideParenTrail -----------------------------------")
+    local cache = result.errorPosCache[ERROR_UNMATCHED_CLOSE_PAREN]
+    if (cache and cache.x < result.parenTrail.startX) then
+      error(createError(result, ERROR_UNMATCHED_CLOSE_PAREN))
+    end
 end
 
 local function setMaxIndent(result, opener)
-    -- TODO: write me
-    print("UNPORTED FUNCTION: setMaxIndent -----------------------------------")
+    if opener then
+      local parent = peek(result.parenStack, 0)
+      if parent then
+        parent.maxChildIndent = opener.x
+      else 
+        result.maxIndent = opener.x
+      end
+    end
 end
 
-local function rememberParenTrail(result)
+rememberParenTrail = function (result)
     -- TODO: write me
     print("UNPORTED FUNCTION: rememberParenTrail -----------------------------------")
 end
@@ -945,6 +1026,10 @@ end
 -- Indentation Functions
 
 local function addIndent(result, delta)
+    if trace then
+        print '[TRACE] addIndent start'
+    end
+    
     local origIndent = result.x
     local newIndent = origIndent + delta
     local indentStr = repeatString(BLANK_SPACE, newIndent)
@@ -952,6 +1037,10 @@ local function addIndent(result, delta)
     result.x = newIndent
     result.indentX = newIndent
     result.indentDelta = result.indentDelta + delta
+    
+    if trace then
+        print '[TRACE] addIndent end'
+    end    
 end
 
 local function shouldAddOpenerIndent(result, opener)
@@ -1066,7 +1155,7 @@ local function setTabStops(result)
     --for (i = 1; i < result.tabStops.length; i++) {
     --  var x = result.tabStops[i].x
     --  var prevArgX = result.tabStops[i - 1].argX
-    --  if (prevArgX != null && prevArgX >= x) {
+    --  if (prevArgX != null and prevArgX >= x) {
     --    delete result.tabStops[i - 1].argX
     --  }
     --}
@@ -1188,31 +1277,39 @@ end
 local function processText(text, options, mode, smart)
     local result = getInitialResult(text, options, mode, smart)
 
-    local status, errOrResult =
-        pcall(
-        function()
-            return processTextInternal(result)
-        end
-    )
+    processTextInternal(result)
+    return result
+    
+    --local status, errOrResult =
+    --    pcall(
+    --        function()
+    --            return processTextInternal(result)
+    --        end
+    --    )
 
-    if status then
-        return result
-    else
-        print("FIXME: do error handling here")
-        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-        return nil
-    end
+    --if status then
+    --    return errOrResult
+    --else
+    --    print("FIXME: do error handling here")
+    --    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    --    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    --    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    --    return nil
+    --end
 end
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- Public API
 
 local function publicResult(result)
+    if trace then
+        print('[TRACE] publicResult')
+        print(inspect(result))
+    end
+
     local lineEnding = getLineEnding(result.origText)
     local final
-    if result.success == true then
+    if result.success then
         final = {
             text = strJoin(result.lines, lineEnding),
             cursorX = result.cursorX,

@@ -86,9 +86,9 @@ function assertStructure1 (testCase, mode)
 
   -- FIXME: not checking paren trails after this main check
   -- (causing problems, and not a priority at time of writing)
-  if (result.parenTrails) then
-    actual.parenTrails = nil
-  end
+  --if (result.parenTrails) then
+  --  actual.parenTrails = nil
+  --end
 
   -- bypass the next checks if these conditions exist
   if (expected.error or expected.tabStops or expected.parenTrails or testCase.options.changes) then

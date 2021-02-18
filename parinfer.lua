@@ -821,8 +821,15 @@ local function isCursorInComment(result, cursorX, cursorLine)
 end
 
 local function handleChangeDelta(result)
-    -- TODO: write me
-    print("UNPORTED FUNCTION: handleChangeDelta -----------------------------------")
+    if (result.changes and (result.smart or result.mode == PAREN_MODE)) then
+        local line = result.changes[result.inputLineNo]
+        if (line) then
+            local change = line[result.inputX]
+            if (change) then
+                result.indentDelta = result.indentDelta + change.newEndX - change.oldEndX
+            end
+        end
+    end
 end
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1012,8 +1019,15 @@ local function onCommentLine(result)
 end
 
 local function checkIndent(result)
-    -- TODO: write me
-    print("UNPORTED FUNCTION: checkIndent -----------------------------------")
+    if isCloseParen(result.ch) then
+        onLeadingCloseParen(result)
+    elseif isCommentChar(result.ch, result.commentChars) then
+        -- comments don't count as indentation points
+        onCommentLine(result)
+        result.trackingIndent = false
+    elseif result.ch ~= NEWLINE and result.ch ~= BLANK_SPACE and result.ch ~= TAB then
+        onIndent(result)
+    end
 end
 
 local function makeTabStop(result, opener)
@@ -1022,13 +1036,40 @@ local function makeTabStop(result, opener)
 end
 
 local function getTabStopLine(result)
-    -- TODO: write me
-    print("UNPORTED FUNCTION: getTabStopLine -----------------------------------")
+    if result.selectionStartLine ~= UINT_NULL then
+        return result.selectionStartLine
+    end
+    return result.cursorLine
 end
 
 local function setTabStops(result)
     -- TODO: write me
     print("UNPORTED FUNCTION: setTabStops -----------------------------------")
+
+    -- FIXME: refactor this to not use the early return
+    --if (getTabStopLine(result) ~= result.lineNo) then
+    --  return
+    --end
+    --
+    --    for idx, _itm in pairs(result.parenStack) do
+    --        table.insert(result.tabStops, makeTabStop(result, result.parenStack[idx]))
+    --    end
+    --
+    --
+    --    if result.mode == PAREN_MODE then
+    --      for (i = result.parenTrail.openers.length - 1; i >= 0; i--) {
+    --        result.tabStops.push(makeTabStop(result, result.parenTrail.openers[i]))
+    --      }
+    --    end
+
+    -- remove argX if it falls to the right of the next stop
+    --for (i = 1; i < result.tabStops.length; i++) {
+    --  var x = result.tabStops[i].x
+    --  var prevArgX = result.tabStops[i - 1].argX
+    --  if (prevArgX != null && prevArgX >= x) {
+    --    delete result.tabStops[i - 1].argX
+    --  }
+    --}
 end
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

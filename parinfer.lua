@@ -412,14 +412,15 @@ splitLines = function(s)
 end
 
 local function replaceWithinString(orig, startIdx, endIdx, replace)
-    local head = string.sub(orig, 1, startIdx)
-    local tail = string.sub(orig, endIdx + 1, -1)
+    local head = string.sub(orig, 1, startIdx - 1)
+    local tail = string.sub(orig, endIdx, -1)
     return head .. replace .. tail
 end
 
-assert(replaceWithinString("aaa", 0, 2, "") == "a")
-assert(replaceWithinString("aaa", 0, 1, "b") == "baa")
-assert(replaceWithinString("aaa", 0, 2, "b") == "ba")
+assert(replaceWithinString('abc', 1, 3, '') == 'c')
+assert(replaceWithinString('abc', 1, 2, 'x') == 'xbc')
+assert(replaceWithinString('abc', 1, 3, 'x') == 'xc')
+assert(replaceWithinString('abcdef', 4, 26, '') == 'abc')
 
 local function repeatString(text, n)
     return string.rep(text, n)
@@ -559,6 +560,48 @@ assert(peek({"a", "b", "c"}, 5) == nil)
 assert(peek({}, 0) == nil)
 assert(peek({}, 1) == nil)
 
+-- concat the elements in t2 onto t1
+-- returns a new table
+local function concatTables(t1, t2)
+  local newTable = {}
+  
+  for k,v in pairs(t1) do
+    table.insert(newTable, v)
+  end  
+  
+  for k,v in pairs(t2) do
+    table.insert(newTable, v)
+  end
+
+  return newTable
+end
+
+assert(strJoin(concatTables({}, {})) == strJoin({}))
+assert(strJoin(concatTables({'a'}, {})) == strJoin({'a'}))
+assert(strJoin(concatTables({}, {'a'})) == strJoin({'a'}))
+assert(strJoin(concatTables({'a', 'b', 'c'}, {'d', 'e'})) == strJoin({'a', 'b', 'c', 'd', 'e'}))
+
+-- returns a new table with elements of tbl
+-- startIdx and endIdx are both inclusive
+local function sliceTable (tbl, startIdx, endIdx)
+  local newTable = {}
+  
+  for idx,v in pairs(tbl) do
+    if idx >= startIdx and idx <= endIdx then
+      table.insert(newTable, v)
+    end
+  
+  end
+  
+  return newTable
+end
+
+assert(strJoin(sliceTable({'a', 'b', 'c'}, 1, 1)) == strJoin({'a'}))
+assert(strJoin(sliceTable({'a', 'b', 'c'}, 2, 2)) == strJoin({'b'}))
+assert(strJoin(sliceTable({'a', 'b', 'c', 'd', 'e'}, 2, 3)) == strJoin({'b', 'c'}))
+assert(strJoin(sliceTable({'a', 'b', 'c', 'd', 'e'}, 3, 25)) == strJoin({'c', 'd', 'e'}))
+assert(strJoin(sliceTable({}, 2, 3)) == strJoin({}))
+
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- Character Predicates
 
@@ -622,8 +665,17 @@ local function checkCursorHolding(result)
 end
 
 local function trackArgTabStop(result, state)
-    -- TODO: write me
-    print("UNPORTED FUNCTION: trackArgTabStop -----------------------------------")
+    if state == 'space' then
+      if result.isInCode and isWhitespace(result) then
+        result.trackingArgTabStop = 'arg'
+      end
+    elseif state == 'arg' then
+      if not isWhitespace(result) then
+        local opener = peek(result.parenStack, 0)
+        opener.argX = result.x
+        result.trackingArgTabStop = nil
+      end
+    end
 end
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -859,8 +911,38 @@ local function isCursorClampingParenTrail(result, cursorX, cursorLine)
 end
 
 local function clampParenTrailToCursor(result)
-    -- TODO: write me
-    print("UNPORTED FUNCTION: clampParenTrailToCursor -----------------------------------")
+    local startX = result.parenTrail.startX
+    local endX = result.parenTrail.endX
+
+    local clamping = isCursorClampingParenTrail(result, result.cursorX, result.cursorLine)
+
+    if (clamping) then
+      local newStartX = math.max(startX, result.cursorX)
+      local newEndX = math.max(endX, result.cursorX)
+
+      local line = result.lines[result.lineNo]
+      local removeCount = 0
+      local i = startX
+      while i < newStartX do
+        local ch = string.sub(line,i,i)
+        if isCloseParen(ch) then
+            removeCount = removeCount + 1
+        end
+        i = i + 1
+      end
+
+      local openers = result.parenTrail.openers
+      local numOpeners = size(openers)
+
+      --result.parenTrail.openers = openers.slice(removeCount)
+      result.parenTrail.openers = sliceTable(openers, removeCount, size(openers))
+      result.parenTrail.startX = newStartX
+      result.parenTrail.endX = newEndX
+
+      --result.parenTrail.clamped.openers = openers.slice(0, removeCount)
+      result.parenTrail.clamped.startX = startX
+      result.parenTrail.clamped.endX = endX
+    end
 end
 
 local function popParenTrail(result)
@@ -963,6 +1045,10 @@ local function correctParenTrail(result, indentX)
         result.parenTrail.endX = result.parenTrail.startX + string.len(parens)
         rememberParenTrail(result)
     end
+    
+    --print('---------------------------------------------------')
+    --print(parens)
+    --print('---------------------------------------------------')
 end
 
 local function cleanParenTrail(result)
@@ -998,8 +1084,35 @@ local function setMaxIndent(result, opener)
 end
 
 rememberParenTrail = function (result)
-    -- TODO: write me
-    print("UNPORTED FUNCTION: rememberParenTrail -----------------------------------")
+    local trail = result.parenTrail
+    local openers = concatTables(trail.clamped.openers, trail.openers)
+    if not isTableEmpty(openers) then
+      local isClamped = trail.clamped.startX ~= UINT_NULL
+      local allClamped = isTableEmpty(trail.openers)
+      
+      local startX = trail.startX
+      if isClamped then startX = trail.clamped.startX end
+      
+      local endX = trail.endX
+      if allClamped then endX = trail.clamped.endX end
+      
+      local shortTrail = {
+        lineNo = trail.lineNo,
+        startX = startX,
+        endX = endX
+      }
+      table.insert(result.parenTrails, shortTrail)
+
+      -- TODO: this almost certainly is not working due to openers
+      -- being a deep copy here and then not being returned anywhere
+      -- possibly a bug in parinfer.js as well
+      --if result.returnParens then
+      --  local i
+      --  for (i = 0; i < openers.length; i++) {
+      --    openers[i].closer.trail = shortTrail
+      --  }
+      --end
+    end
 end
 
 local function updateRememberedParenTrail(result)
@@ -1153,8 +1266,8 @@ local function setTabStops(result)
 
     -- remove argX if it falls to the right of the next stop
     --for (i = 1; i < result.tabStops.length; i++) {
-    --  var x = result.tabStops[i].x
-    --  var prevArgX = result.tabStops[i - 1].argX
+    --  local x = result.tabStops[i].x
+    --  local prevArgX = result.tabStops[i - 1].argX
     --  if (prevArgX != null and prevArgX >= x) {
     --    delete result.tabStops[i - 1].argX
     --  }
@@ -1271,7 +1384,10 @@ local function processTextInternal(result)
         processLine(result, idx)
     end
 
+    --print(inspect(result))
     finalizeResult(result)
+    --print'\n\n\n'
+    --print(inspect(result))
 end
 
 local function processText(text, options, mode, smart)

@@ -1,4 +1,5 @@
 [
+
   {
     "text": "(defn foo\n  [arg\n  ret",
     "options": {},
@@ -14,6 +15,104 @@
       "out": "(defn foo\n  [arg]\n  ret)"
     },
     "id": 1000
+  },
+  {
+    "text": "(defn foo\n  [arg\n   ret",
+    "options": {},
+    "result": {
+      "text": "(defn foo\n  [arg\n   ret])",
+      "success": true
+    },
+    "source": {
+      "lineNo": 20,
+      "in": [
+        "(defn foo\n  [arg\n   ret"
+      ],
+      "out": "(defn foo\n  [arg\n   ret])"
+    },
+    "id": 1005
+  },
+  {
+    "text": "(defn foo\n[arg\n   ret",
+    "options": {},
+    "result": {
+      "text": "(defn foo)\n[arg\n   ret]",
+      "success": true
+    },
+    "source": {
+      "lineNo": 34,
+      "in": [
+        "(defn foo\n[arg\n   ret"
+      ],
+      "out": "(defn foo)\n[arg\n   ret]"
+    },
+    "id": 1010
+  },
+  {
+    "text": "(defn foo\n[arg\nret",
+    "options": {},
+    "result": {
+      "text": "(defn foo)\n[arg]\nret",
+      "success": true
+    },
+    "source": {
+      "lineNo": 48,
+      "in": [
+        "(defn foo\n[arg\nret"
+      ],
+      "out": "(defn foo)\n[arg]\nret"
+    },
+    "id": 1015
+  },
+  {
+    "text": "(defn foo\n  [arg\n  ret\n\n(defn foo\n  [arg\n  ret",
+    "options": {},
+    "result": {
+      "text": "(defn foo\n  [arg]\n  ret)\n\n(defn foo\n  [arg]\n  ret)",
+      "success": true
+    },
+    "source": {
+      "lineNo": 62,
+      "in": [
+        "(defn foo\n  [arg\n  ret\n\n(defn foo\n  [arg\n  ret"
+      ],
+      "out": "(defn foo\n  [arg]\n  ret)\n\n(defn foo\n  [arg]\n  ret)"
+    },
+    "id": 1020
+  }  ,
+  
+  {
+    "text": "bar)",
+    "options": {},
+    "result": {
+      "text": "bar",
+      "success": true
+    },
+    "source": {
+      "lineNo": 86,
+      "in": [
+        "bar)"
+      ],
+      "out": "bar"
+    },
+    "id": 1025
+  }  ,
+  
+    {
+    "text": "(def foo [a b]]",
+    "options": {},
+    "result": {
+      "text": "(def foo [a b])",
+      "success": true
+    },
+    "source": {
+      "lineNo": 96,
+      "in": [
+        "(def foo [a b]]"
+      ],
+      "out": "(def foo [a b])"
+    },
+    "id": 1030
   }
-
+  
 ]

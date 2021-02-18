@@ -15,7 +15,9 @@ local inspect = require("libs/inspect")
 local M = {}
 
 -- forward declarations
-local splitLines
+local splitLines, resetParenTrail
+
+local trace = false
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- Lua Helpers
@@ -127,10 +129,12 @@ assert(not isTableOfChars({"a", "b", "ccc"}))
 
 local function transformChange(change)
     -- TODO: write me
+    print("UNPORTED FUNCTION: transformChange -----------------------------------")
 end
 
 local function transformChanges(changes)
     -- TODO: write me
+    print("UNPORTED FUNCTION: transformChanges -----------------------------------")
 end
 
 local function parseOptions(options)
@@ -177,12 +181,12 @@ local function getInitialResult(text, options, mode, smart)
         origCursorX = UINT_NULL,
         origCursorLine = UINT_NULL,
         inputLines = splitLines(text),
-        inputLineNo = -1,
-        inputX = -1,
+        inputLineNo = 0, -- Lua ONE INDEX
+        inputX = 0, -- Lua ONE INDEX
         lines = {},
-        lineNo = -1,
+        lineNo = 0, -- Lua ONE INDEX
         ch = "",
-        x = 0,
+        x = 0, -- Lua ONE INDEX
         indentX = UINT_NULL,
         parenStack = {},
         tabStops = {},
@@ -212,7 +216,7 @@ local function getInitialResult(text, options, mode, smart)
         maxIndent = UINT_NULL,
         indentDelta = 0,
         trackingArgTabStop = nil,
-        ["error2"] = {
+        ["error"] = {
             name = nil,
             message = nil,
             lineNo = nil,
@@ -429,6 +433,7 @@ assert(repeatString("", 5) == "")
 
 local function getLineEnding(text)
     -- TODO: write me
+    print("UNPORTED FUNCTION: getLineEnding -----------------------------------")
 
     return "\n"
 end
@@ -458,6 +463,12 @@ end
 
 local function replaceWithinLine(result, lineNo, startIdx, endIdx, replace)
     local line = result.lines[lineNo]
+
+    if trace then
+        print(inspect(result))
+        print("[TRACE] replaceWithinLine")
+    end
+
     local newLine = replaceWithinString(line, startIdx, endIdx, replace)
     result.lines[lineNo] = newLine
 
@@ -469,7 +480,7 @@ local function insertWithinLine(result, lineNo, idx, insert)
 end
 
 local function initLine(result)
-    result.x = 0
+    result.x = 1 -- Lua ONE INDEX
     result.lineNo = result.lineNo + 1
 
     -- reset line-specific state
@@ -494,6 +505,11 @@ local function commitChar(result, origCh)
         replaceWithinLine(result, result.lineNo, result.x, result.x + origChLength, ch)
         result.indentDelta = result.indentDelta - origChLength - chLength
     end
+
+    if trace then
+        print("[TRACE] inside commitChar")
+    end
+
     result.x = result.x + chLength
 end
 
@@ -594,10 +610,12 @@ assert(not isCommentChar("#", {";", "a"}))
 
 local function checkCursorHolding(result)
     -- TODO: write me
+    print("UNPORTED FUNCTION: checkCursorHolding -----------------------------------")
 end
 
 local function trackArgTabStop(result, state)
     -- TODO: write me
+    print("UNPORTED FUNCTION: trackArgTabStop -----------------------------------")
 end
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -789,77 +807,131 @@ end
 
 local function isCursorLeftOf(cursorX, cursorLine, x, lineNo)
     -- TODO: write me
+    print("UNPORTED FUNCTION: isCursorLeftOf -----------------------------------")
 end
 
 local function isCursorRightOf(cursorX, cursorLine, x, lineNo)
     -- TODO: write me
+    print("UNPORTED FUNCTION: isCursorRightOf -----------------------------------")
 end
 
 local function isCursorInComment(result, cursorX, cursorLine)
     -- TODO: write me
+    print("UNPORTED FUNCTION: isCursorInComment -----------------------------------")
 end
 
 local function handleChangeDelta(result)
     -- TODO: write me
+    print("UNPORTED FUNCTION: handleChangeDelta -----------------------------------")
 end
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- Paren Trail Functions
 
-local function resetParenTrail(result, lineNo, x)
-    -- TODO: write me
+resetParenTrail = function(result, lineNo, x)
+    result.parenTrail.lineNo = lineNo
+    result.parenTrail.startX = x
+    result.parenTrail.endX = x
+    result.parenTrail.openers = {}
+    result.parenTrail.clamped.startX = UINT_NULL
+    result.parenTrail.clamped.endX = UINT_NULL
+    result.parenTrail.clamped.openers = {}
 end
 
 local function isCursorClampingParenTrail(result, cursorX, cursorLine)
     -- TODO: write me
+    print("UNPORTED FUNCTION: isCursorClampingParenTrail -----------------------------------")
 end
 
 local function clampParenTrailToCursor(result)
     -- TODO: write me
+    print("UNPORTED FUNCTION: clampParenTrailToCursor -----------------------------------")
 end
 
 local function popParenTrail(result)
     -- TODO: write me
+    print("UNPORTED FUNCTION: popParenTrail -----------------------------------")
 end
 
 local function getParentOpenerIndex(result, indentX)
     -- TODO: write me
+    print("UNPORTED FUNCTION: getParentOpenerIndex -----------------------------------")
 end
 
 local function correctParenTrail(result, indentX)
     -- TODO: write me
+    print("UNPORTED FUNCTION: correctParenTrail -----------------------------------")
+
+    --local parens = ''
+    --local index = getParentOpenerIndex(result, indentX)
+
+    -- FIXME: not ported yet
+    --var i
+    --for (i = 0; i < index; i++) {
+    --  var opener = result.parenStack.pop()
+    --  result.parenTrail.openers.push(opener)
+    --  var closeCh = MATCH_PAREN[opener.ch]
+    --  parens += closeCh
+    --
+    --      if result.returnParens then
+    --        setCloser(opener, result.parenTrail.lineNo, result.parenTrail.startX + i, closeCh)
+    --      end
+    --    }
+
+    --if result.parenTrail.lineNo ~= UINT_NULL then
+    --  replaceWithinLine(result, result.parenTrail.lineNo, result.parenTrail.startX, result.parenTrail.endX, parens)
+    --  result.parenTrail.endX = result.parenTrail.startX + parens.length
+    --  rememberParenTrail(result)
+    --end
 end
 
 local function cleanParenTrail(result)
     -- TODO: write me
+    print("UNPORTED FUNCTION: cleanParenTrail -----------------------------------")
 end
 
 local function appendParenTrail(result)
     -- TODO: write me
+    print("UNPORTED FUNCTION: appendParenTrail -----------------------------------")
 end
 
 local function invalidateParenTrail(result)
-    -- TODO: write me
+    result.parenTrail = initialParenTrail()
 end
 
 local function checkUnmatchedOutsideParenTrail(result)
     -- TODO: write me
+    print("UNPORTED FUNCTION: checkUnmatchedOutsideParenTrail -----------------------------------")
 end
 
 local function setMaxIndent(result, opener)
     -- TODO: write me
+    print("UNPORTED FUNCTION: setMaxIndent -----------------------------------")
 end
 
 local function rememberParenTrail(result)
     -- TODO: write me
+    print("UNPORTED FUNCTION: rememberParenTrail -----------------------------------")
 end
 
 local function updateRememberedParenTrail(result)
     -- TODO: write me
+    print("UNPORTED FUNCTION: updateRememberedParenTrail -----------------------------------")
 end
 
 local function finishNewParenTrail(result)
-    -- TODO: write me
+    if (result.isInStr) then
+        invalidateParenTrail(result)
+    elseif (result.mode == INDENT_MODE) then
+        clampParenTrailToCursor(result)
+        popParenTrail(result)
+    elseif (result.mode == PAREN_MODE) then
+        setMaxIndent(result, peek(result.parenTrail.openers, 0))
+        if (result.lineNo ~= result.cursorLine) then
+            cleanParenTrail(result)
+        end
+        rememberParenTrail(result)
+    end
 end
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -869,7 +941,7 @@ local function addIndent(result, delta)
     local origIndent = result.x
     local newIndent = origIndent + delta
     local indentStr = repeatString(BLANK_SPACE, newIndent)
-    replaceWithinLine(result, result.lineNo, 0, origIndent, indentStr)
+    replaceWithinLine(result, result.lineNo, 1, origIndent, indentStr) -- Lua ONE INDEX
     result.x = newIndent
     result.indentX = newIndent
     result.indentDelta = result.indentDelta + delta
@@ -931,26 +1003,32 @@ end
 
 local function onLeadingCloseParen(result)
     -- TODO: write me
+    print("UNPORTED FUNCTION: onLeadingCloseParen -----------------------------------")
 end
 
 local function onCommentLine(result)
     -- TODO: write me
+    print("UNPORTED FUNCTION: onCommentLine -----------------------------------")
 end
 
 local function checkIndent(result)
     -- TODO: write me
+    print("UNPORTED FUNCTION: checkIndent -----------------------------------")
 end
 
 local function makeTabStop(result, opener)
     -- TODO: write me
+    print("UNPORTED FUNCTION: makeTabStop -----------------------------------")
 end
 
 local function getTabStopLine(result)
     -- TODO: write me
+    print("UNPORTED FUNCTION: getTabStopLine -----------------------------------")
 end
 
 local function setTabStops(result)
     -- TODO: write me
+    print("UNPORTED FUNCTION: setTabStops -----------------------------------")
 end
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -974,15 +1052,24 @@ local function processChar(result, ch)
         onChar(result)
     end
 
+    if trace then
+        print("[TRACE] processChar() before commitChar")
+    end
+
     commitChar(result, origCh)
+
+    if trace then
+        print("[TRACE] processChar() after commitChar")
+    end
 end
 
 local function processLine(result, lineNo)
-
     --print(inspect(result))
     --print('33333333333333333333333333333333333333333333333333333333333')
-    
+
     initLine(result)
+
+    -- print('after initLine')
 
     local line = result.inputLines[lineNo]
     table.insert(result.lines, line)
@@ -992,12 +1079,25 @@ local function processLine(result, lineNo)
 
     setTabStops(result)
 
+    -- print('after setTabStops')
+
     for idx = 1, string.len(line) do
+        --print(idx, '$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
         result.inputX = idx
         local ch = string.sub(line, idx, idx)
         processChar(result, ch)
+        --print(idx, ':::::::::::::::::::::::::::::::::::::::::')
     end
+
+    if trace then
+        print("[TRACE] processLine() done with char processing")
+    end
+
     processChar(result, NEWLINE)
+
+    if trace then
+        print("[TRACE] processLine() done with processChar()")
+    end
 
     if not result.forceBalance then
         checkUnmatchedOutsideParenTrail(result)
@@ -1032,14 +1132,11 @@ end
 
 local function processError(result, e)
     -- TODO: write me
+    print("UNPORTED FUNCTION: processError -----------------------------------")
 end
 
 local function processTextInternal(result)
     for idx, line in pairs(result.inputLines) do
-        --print(idx)
-        --print(line)
-        --print('=========================================')
-
         result.inputLineNo = idx
         processLine(result, idx)
     end
@@ -1049,10 +1146,7 @@ end
 
 local function processText(text, options, mode, smart)
     local result = getInitialResult(text, options, mode, smart)
-    
-    print(inspect(result))
-    print('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@')
-    
+
     local status, errOrResult =
         pcall(
         function()

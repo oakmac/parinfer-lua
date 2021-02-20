@@ -550,14 +550,14 @@ local function cacheErrorPos(result, errorName)
     return e
 end
 
-local function createError(result, errorName)
+local function createError(result, name)
     local cache = result.errorPosCache[name]
 
     local keyLineNo = "inputLineNo"
     local keyX = "inputX"
     if result.partialResult then
         keyLineNo = "lineNo"
-        keyX = "x"
+        keyX = 'x'
     end
 
     local lineNo = 0
@@ -575,7 +575,7 @@ local function createError(result, errorName)
         name = name,
         message = errorMessages[name],
         lineNo = lineNo,
-        x = newX
+        x = x
     }
     local opener = peek(result.parenStack, 0)
 
@@ -1232,9 +1232,16 @@ end
 
 local function checkUnmatchedOutsideParenTrail(result)
     local cache = result.errorPosCache[ERROR_UNMATCHED_CLOSE_PAREN]
+
+    -- 1040 debugging - result.parenTrail.openers has a .closer and .children here
+    -- parinfer.js has nothing
+    -- print(inspect(result.parenTrail.openers))
+    -- print('zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz')
+
+
     if (cache and cache.x < result.parenTrail.startX) then
         -- print(inspect(result.parenTrail))
-        print("throw 2")
+        -- print("throw 2")
         error(createError(result, ERROR_UNMATCHED_CLOSE_PAREN))
     end
 end
@@ -1287,8 +1294,19 @@ rememberParenTrail = function(result)
 end
 
 local function updateRememberedParenTrail(result)
-    -- TODO: write me
-    print("UNPORTED FUNCTION: updateRememberedParenTrail -----------------------------------")
+    local trail = peek(result.parenTrails, 0)
+    if not trail or trail.lineNo ~= result.parenTrail.lineNo then
+      rememberParenTrail(result)
+    else
+      trail.endX = result.parenTrail.endX
+      if result.returnParens then
+        -- this is almost certainly buggy
+        -- commenting this out has no effect on the test suite
+        -- -- C. Oakman, 19 Feb 2021
+        local opener = peek(result.parenTrail.openers, 0)
+        opener.closer.trail = trail
+      end
+    end
 end
 
 local function finishNewParenTrail(result)
@@ -1528,8 +1546,8 @@ local function processLine(result, lineNo)
         local ch = getCharFromString(line2, x)
         processChar(result, ch)
 
-        print(inspect(result.parenTrail))
-        print(x, ch, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
+        -- print(inspect(result.parenTrail))
+        -- print(x, ch, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
 
         x = x + 1
     end
@@ -1576,9 +1594,9 @@ local function finalizeResult(result)
 end
 
 local function processError(result, err)
-    --print(inspect(result))
-    --print(inspect(err))
-    --print("kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk")
+    -- print(inspect(result))
+    -- print(inspect(err))
+    -- print("kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk")
 
     result.success = false
     if err.parinferError then
@@ -1624,8 +1642,10 @@ local function processText(text, options, mode, smart)
                 print("re-tryable class of error")
                 return processText(text, options, PAREN_MODE, smart)
             end
-            print("legit error")
-            print((inspect(err)))
+
+            -- print("legit error")
+            -- print((inspect(err)))
+            -- print('iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii')
 
             processError(result, err)
             return result

@@ -32,11 +32,6 @@ function size(t)
     return count
 end
 
-assert(size({}) == 0)
-assert(size({"a", "b"}) == 2)
-assert(size({"a", "b", "c", "d", "e"}) == 5)
-assert(size({a = "a", b = "b"}) == 2)
-
 local function isTableEmpty(t)
     for _key, _val in pairs(t) do
         return false
@@ -48,7 +43,7 @@ assert(isTableEmpty({}))
 assert(not isTableEmpty({"a", "b"}))
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
--- Constants / Type Predicates
+-- Constants
 
 local UINT_NULL = -999
 
@@ -72,6 +67,12 @@ MATCH_PAREN["]"] = "["
 MATCH_PAREN["("] = ")"
 MATCH_PAREN[")"] = "("
 
+-- toggle this to check the asserts during development
+local RUN_ASSERTS = true
+
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-- Type Predicates
+
 local function isBoolean(x)
     return x == true or x == false
 end
@@ -84,27 +85,37 @@ local function isInteger(i)
     return type(i) == "number" and i == math.floor(i)
 end
 
-assert(isInteger(1))
-assert(isInteger(-97))
-assert(not isInteger(3.14))
-assert(not isInteger())
-assert(not isInteger({}))
-assert(not isInteger("6"))
+if RUN_ASSERTS then
+    assert(isInteger(1))
+    assert(isInteger(-97))
+    assert(not isInteger(3.14))
+    assert(not isInteger())
+    assert(not isInteger({}))
+    assert(not isInteger("6"))
+end
+
+local function isPositiveInt(i)
+    return isInteger(i) and i >= 0
+end
 
 local function isString(s)
     return type(s) == "string"
 end
 
-assert(isString("s"))
-assert(not isString(true))
+if RUN_ASSERTS then
+    assert(isString("s"))
+    assert(not isString(true))
+end
 
 local function isChar(c)
     return isString(c) and string.len(c) == 1
 end
 
-assert(isChar("s"))
-assert(not isChar("xx"))
-assert(not isChar(true))
+if RUN_ASSERTS then
+    assert(isChar("s"))
+    assert(not isChar("xx"))
+    assert(not isChar(true))
+end
 
 local function isTableOfChars(t)
     if not isTable(t) then
@@ -120,9 +131,213 @@ local function isTableOfChars(t)
     return true
 end
 
-assert(isTableOfChars({}))
-assert(isTableOfChars({"a", "b", "c"}))
-assert(not isTableOfChars({"a", "b", "ccc"}))
+if RUN_ASSERTS then
+    assert(isTableOfChars({}))
+    assert(isTableOfChars({"a", "b", "c"}))
+    assert(not isTableOfChars({"a", "b", "ccc"}))
+end
+
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-- Language Helpers
+
+local function tableSize(t)
+    if RUN_ASSERTS then
+        assert(isTable(t), "used tableSize with not an Table")
+    end
+
+    local count = 0
+    for _key, _val in pairs(t) do
+        count = count + 1
+    end
+    return count
+end
+
+if RUN_ASSERTS then
+    assert(size({}) == 0)
+    assert(size({"a", "b"}) == 2)
+    assert(size({"a", "b", "c", "d", "e"}) == 5)
+    assert(size({a = "a", b = "b"}) == 2)
+end
+
+local function strLen(s)
+    if RUN_ASSERTS then
+        assert(isString(s), "used strLen with not a String")
+    end
+    return string.len(s)
+end
+
+local function strConcat(s1, s2)
+    if RUN_ASSERTS then
+        assert(isString(s1), "strConcat argument s1 is not a String")
+        assert(isString(s2), "strConcat argument s2 is not a String")
+    end
+    return s1 .. s2
+end
+
+local function getCharFromString(s, idx)
+    if RUN_ASSERTS then
+        assert(isString(s), "getCharFromString argument s is not a String")
+        assert(isInteger(idx), "getCharFromString argument idx is not an Integer")
+    end
+    return string.sub(s, idx, idx)
+end
+
+if RUN_ASSERTS then
+    assert(getCharFromString("abc", 1) == "a")
+    assert(getCharFromString("abc", 2) == "b")
+end
+
+local function strJoin(tbl, delimiter)
+    if RUN_ASSERTS then
+        assert(isTable(tbl), "strJoin argument tbl is not a Table")
+        assert(isString(delimiter), "strJoin argument delimiter is not a String")
+    end
+
+    return table.concat(tbl, delimiter)
+end
+
+if RUN_ASSERTS then
+    assert(strJoin({"a", "b", "c"}, "") == "abc")
+    assert(strJoin({"a", "b", "c"}, "x") == "axbxc")
+    assert(strJoin({"a", "b", "c"}, "\n") == "a\nb\nc")
+    assert(strJoin({"a", "b", "c", "dd"}, "zz") == "azzbzzczzdd")
+    assert(strJoin({}, "z") == "")
+    assert(strJoin({}, "") == "")
+end
+
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-- String Operations
+
+local function replaceWithinString(orig, startIdx, endIdx, replace)
+    local head = string.sub(orig, 1, startIdx - 1)
+    local tail = string.sub(orig, endIdx, -1)
+    return head .. replace .. tail
+end
+
+if RUN_ASSERTS then
+    assert(replaceWithinString("abc", 1, 3, "") == "c")
+    assert(replaceWithinString("abc", 1, 2, "x") == "xbc")
+    assert(replaceWithinString("abc", 1, 3, "x") == "xc")
+    assert(replaceWithinString("abcdef", 4, 26, "") == "abc")
+end
+
+local function repeatString(text, n)
+    return string.rep(text, n)
+end
+
+if RUN_ASSERTS then
+    assert(repeatString("a", 2) == "aa")
+    assert(repeatString("aa", 3) == "aaaaaa")
+    assert(repeatString("aa", 0) == "")
+    assert(repeatString("", 0) == "")
+    assert(repeatString("", 5) == "")
+end
+
+local function getLineEnding(text)
+    -- TODO: write me
+    print("UNPORTED FUNCTION: getLineEnding -----------------------------------")
+
+    return "\n"
+end
+
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-- Stack Operations
+
+local function isStackEmpty(t)
+    if RUN_ASSERTS then
+        assert(isTable(t), "used isStackEmpty with not a Table")
+    end
+
+    for _key, _val in pairs(t) do
+        return false
+    end
+    return true
+end
+
+if RUN_ASSERTS then
+    assert(isStackEmpty({}))
+    assert(not isStackEmpty({"a"}))
+    assert(not isStackEmpty({"a", "b"}))
+end
+
+local function peek(arr, idxFromBack)
+    idxFromBack = idxFromBack + 1
+    local maxIdx = tableSize(arr)
+    if (idxFromBack > maxIdx) then
+        return nil
+    end
+    return arr[maxIdx - idxFromBack + 1]
+end
+
+if RUN_ASSERTS then
+    assert(peek({"a"}, 0) == "a")
+    assert(peek({"a"}, 1) == nil)
+    assert(peek({"a", "b", "c"}, 0) == "c")
+    assert(peek({"a", "b", "c"}, 1) == "b")
+    assert(peek({"a", "b", "c"}, 5) == nil)
+    assert(peek({}, 0) == nil)
+    assert(peek({}, 1) == nil)
+end
+
+local function stackPop(s)
+    if RUN_ASSERTS then
+        assert(isTable(s), "used stackPop with not an Table")
+    end
+
+    return table.remove(s)
+end
+
+if RUN_ASSERTS then
+    assert(stackPop({"a"}) == "a")
+    assert(stackPop({"a", "b", "c"}) == "c")
+    local testTable1 = {"a", "b"}
+    assert(stackPop(testTable1) == "b")
+    assert(tableSize(testTable1) == 1)
+    assert(stackPop(testTable1) == "a")
+    assert(tableSize(testTable1) == 0)
+    stackPop(testTable1)
+    assert(tableSize(testTable1) == 0)
+end
+
+local function stackPush(s, itm)
+    if RUN_ASSERTS then
+        assert(isTable(s), "used stackPush with not an Table")
+        assert(isString(itm) or itm, "used stackPush without a second itm")
+    end
+
+    table.insert(s, itm)
+    return nil
+end
+
+if RUN_ASSERTS then
+    local testTable2 = {"a", "b"}
+    stackPush(testTable2, "c")
+    assert(tableSize(testTable2) == 3)
+    assert(peek(testTable2, 0) == "c")
+    assert(peek(testTable2, 1) == "b")
+end
+
+-- returns a new table with elements of tbl
+-- startIdx and endIdx are both inclusive
+local function sliceTable(tbl, startIdx, endIdx)
+    local newTable = {}
+
+    for idx, v in pairs(tbl) do
+        if idx >= startIdx and idx <= endIdx then
+            table.insert(newTable, v)
+        end
+    end
+
+    return newTable
+end
+
+if RUN_ASSERTS then
+    assert(strJoin(sliceTable({"a", "b", "c"}, 1, 1), "") == strJoin({"a"}, ""))
+    assert(strJoin(sliceTable({"a", "b", "c"}, 2, 2), "") == strJoin({"b"}, ""))
+    assert(strJoin(sliceTable({"a", "b", "c", "d", "e"}, 2, 3), "") == strJoin({"b", "c"}, ""))
+    assert(strJoin(sliceTable({"a", "b", "c", "d", "e"}, 3, 25), "") == strJoin({"c", "d", "e"}, ""))
+    assert(strJoin(sliceTable({}, 2, 3), "") == strJoin({}, ""))
+end
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- Options Structure
@@ -341,7 +556,7 @@ local function createError(result, errorName)
     local opener = peek(result.parenStack, 0)
 
     if name == ERROR_UNMATCHED_CLOSE_PAREN then
-        print('zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz')
+        print("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz")
         -- extra error info for locating the open-paren that it should've matched
         cache = result.errorPosCache[ERROR_UNMATCHED_OPEN_PAREN]
         if cache or opener then
@@ -372,17 +587,6 @@ end
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- String Operations
 
-local function strJoin(tbl, delimiter)
-    return table.concat(tbl, delimiter)
-end
-
-assert(strJoin({"a", "b", "c"}, "") == "abc")
-assert(strJoin({"a", "b", "c"}, "x") == "axbxc")
-assert(strJoin({"a", "b", "c"}, "\n") == "a\nb\nc")
-assert(strJoin({"a", "b", "c", "dd"}, "zz") == "azzbzzczzdd")
-assert(strJoin({}, "z") == "")
-assert(strJoin({}, "") == "")
-
 -- modified from penlight: https://tinyurl.com/37fqwxy8
 splitLines = function(s)
     local res = {}
@@ -408,34 +612,6 @@ splitLines = function(s)
         table.insert(res, string.sub(s, pos))
     end
     return res
-end
-
-local function replaceWithinString(orig, startIdx, endIdx, replace)
-    local head = string.sub(orig, 1, startIdx - 1)
-    local tail = string.sub(orig, endIdx, -1)
-    return head .. replace .. tail
-end
-
-assert(replaceWithinString("abc", 1, 3, "") == "c")
-assert(replaceWithinString("abc", 1, 2, "x") == "xbc")
-assert(replaceWithinString("abc", 1, 3, "x") == "xc")
-assert(replaceWithinString("abcdef", 4, 26, "") == "abc")
-
-local function repeatString(text, n)
-    return string.rep(text, n)
-end
-
-assert(repeatString("a", 2) == "aa")
-assert(repeatString("aa", 3) == "aaaaaa")
-assert(repeatString("aa", 0) == "")
-assert(repeatString("", 0) == "")
-assert(repeatString("", 5) == "")
-
-local function getLineEnding(text)
-    -- TODO: write me
-    print("UNPORTED FUNCTION: getLineEnding -----------------------------------")
-
-    return "\n"
 end
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -541,30 +717,15 @@ local function clamp(val, minN, maxN)
     return val
 end
 
-assert(clamp(1, 3, 5) == 3)
-assert(clamp(9, 3, 5) == 5)
-assert(clamp(1, 3, UINT_NULL) == 3)
-assert(clamp(5, 3, UINT_NULL) == 5)
-assert(clamp(1, UINT_NULL, 5) == 1)
-assert(clamp(9, UINT_NULL, 5) == 5)
-assert(clamp(1, UINT_NULL, UINT_NULL) == 1)
-
-peek = function(arr, idxFromBack)
-    idxFromBack = idxFromBack + 1
-    local maxIdx = size(arr)
-    if (idxFromBack > maxIdx) then
-        return nil
-    end
-    return arr[maxIdx - idxFromBack + 1]
+if RUN_ASSERTS then
+    assert(clamp(1, 3, 5) == 3)
+    assert(clamp(9, 3, 5) == 5)
+    assert(clamp(1, 3, UINT_NULL) == 3)
+    assert(clamp(5, 3, UINT_NULL) == 5)
+    assert(clamp(1, UINT_NULL, 5) == 1)
+    assert(clamp(9, UINT_NULL, 5) == 5)
+    assert(clamp(1, UINT_NULL, UINT_NULL) == 1)
 end
-
-assert(peek({"a"}, 0) == "a")
-assert(peek({"a"}, 1) == nil)
-assert(peek({"a", "b", "c"}, 0) == "c")
-assert(peek({"a", "b", "c"}, 1) == "b")
-assert(peek({"a", "b", "c"}, 5) == nil)
-assert(peek({}, 0) == nil)
-assert(peek({}, 1) == nil)
 
 -- concat the elements in t2 onto t1
 -- returns a new table
@@ -582,30 +743,12 @@ local function concatTables(t1, t2)
     return newTable
 end
 
-assert(strJoin(concatTables({}, {})) == strJoin({}))
-assert(strJoin(concatTables({"a"}, {})) == strJoin({"a"}))
-assert(strJoin(concatTables({}, {"a"})) == strJoin({"a"}))
-assert(strJoin(concatTables({"a", "b", "c"}, {"d", "e"})) == strJoin({"a", "b", "c", "d", "e"}))
-
--- returns a new table with elements of tbl
--- startIdx and endIdx are both inclusive
-local function sliceTable(tbl, startIdx, endIdx)
-    local newTable = {}
-
-    for idx, v in pairs(tbl) do
-        if idx >= startIdx and idx <= endIdx then
-            table.insert(newTable, v)
-        end
-    end
-
-    return newTable
+if RUN_ASSERTS then
+    assert(strJoin(concatTables({}, {}), "") == strJoin({}, ""))
+    assert(strJoin(concatTables({"a"}, {}), "") == strJoin({"a"}, ""))
+    assert(strJoin(concatTables({}, {"a"}), "") == strJoin({"a"}, ""))
+    assert(strJoin(concatTables({"a", "b", "c"}, {"d", "e"}), "") == strJoin({"a", "b", "c", "d", "e"}, ""))
 end
-
-assert(strJoin(sliceTable({"a", "b", "c"}, 1, 1)) == strJoin({"a"}))
-assert(strJoin(sliceTable({"a", "b", "c"}, 2, 2)) == strJoin({"b"}))
-assert(strJoin(sliceTable({"a", "b", "c", "d", "e"}, 2, 3)) == strJoin({"b", "c"}))
-assert(strJoin(sliceTable({"a", "b", "c", "d", "e"}, 3, 25)) == strJoin({"c", "d", "e"}))
-assert(strJoin(sliceTable({}, 2, 3)) == strJoin({}))
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- Character Predicates
@@ -733,6 +876,9 @@ local function onMatchedCloseParen(result)
     end
 
     result.parenTrail.endX = result.x + 1
+    print("add to openers 1")
+    print(inspect(opener))
+    print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
     table.insert(result.parenTrail.openers, opener)
 
     if (result.mode == INDENT_MODE and result.smart and checkCursorHolding(result)) then
@@ -1032,6 +1178,7 @@ local function correctParenTrail(result, indentX)
     local i = 0
     while i < index do
         local opener = table.remove(result.parenStack)
+        print("add to openers 2")
         table.insert(result.parenTrail.openers, opener)
 
         local closeCh = MATCH_PAREN[opener.ch]
@@ -1095,6 +1242,7 @@ local function appendParenTrail(result)
     insertWithinLine(result, result.parenTrail.lineNo, result.parenTrail.endX, closeCh)
 
     result.parenTrail.endX = result.parenTrail.endX + 1
+    print("add to openers 3")
     table.insert(result.parenTrail.openers, opener)
     updateRememberedParenTrail(result)
 end
@@ -1399,10 +1547,10 @@ local function processLine(result, lineNo)
         result.inputX = x
         local ch = string.sub(line, x, x)
         processChar(result, ch)
-        
-        -- print(inspect(result.parenTrail))
-        print(x, ch, '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-        
+
+        print(inspect(result.parenTrail))
+        print(x, ch, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
+
         x = x + 1
     end
 
@@ -1417,7 +1565,7 @@ local function processLine(result, lineNo)
     end
 
     if not result.forceBalance then
-        print('UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU')
+        print("UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU")
         checkUnmatchedOutsideParenTrail(result)
         checkLeadingCloseParen(result)
     end
@@ -1494,15 +1642,12 @@ local function processText(text, options, mode, smart)
             return result
         else
             if err.leadingCloseParen or err.releaseCursorHold then
-                print('re-tryable class of error')
+                print("re-tryable class of error")
                 return processText(text, options, PAREN_MODE, smart)
             end
-            print('legit error')
+            print("legit error")
             print((inspect(err)))
-            
-            
-            
-            
+
             processError(result, err)
             return result
         end

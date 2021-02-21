@@ -9,38 +9,10 @@
 -- Released under the ISC license
 -- https://github.com/oakmac/parinfer-lua/blob/master/LICENSE.md
 
--- TODO: comment this out before publication; used for development debugging
-local inspect = require("libs/inspect")
-
 local M = {}
 
 -- forward declarations
 local resetParenTrail, rememberParenTrail, updateRememberedParenTrail
-
-local trace = false
-
--- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
--- Lua Helpers
-
--- TODO: surely there must be a faster way to determine table length that is not O(n)?
-
-function size(t)
-    local count = 0
-    for _key, _val in pairs(t) do
-        count = count + 1
-    end
-    return count
-end
-
-local function isTableEmpty(t)
-    for _key, _val in pairs(t) do
-        return false
-    end
-    return true
-end
-
-assert(isTableEmpty({}))
-assert(not isTableEmpty({"a", "b"}))
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- Constants
@@ -67,8 +39,15 @@ MATCH_PAREN["]"] = "["
 MATCH_PAREN["("] = ")"
 MATCH_PAREN[")"] = "("
 
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-- Development Helpers
+
+-- NOTE: this is useful for development and debugging purposes
+-- not required for the core library
+-- local inspect = require("libs/inspect")
+
 -- toggle this to check the asserts during development
-local RUN_ASSERTS = true
+local RUN_ASSERTS = false
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- Type Predicates
@@ -140,6 +119,18 @@ end
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- Language Helpers
 
+local function isTableEmpty(t)
+    for _key, _val in pairs(t) do
+        return false
+    end
+    return true
+end
+
+if RUN_ASSERTS then
+    assert(isTableEmpty({}))
+    assert(not isTableEmpty({"a", "b"}))
+end
+
 local function tableSize(t)
     if RUN_ASSERTS then
         assert(isTable(t), "used tableSize with not an Table")
@@ -153,10 +144,10 @@ local function tableSize(t)
 end
 
 if RUN_ASSERTS then
-    assert(size({}) == 0)
-    assert(size({"a", "b"}) == 2)
-    assert(size({"a", "b", "c", "d", "e"}) == 5)
-    assert(size({a = "a", b = "b"}) == 2)
+    assert(tableSize({}) == 0)
+    assert(tableSize({"a", "b"}) == 2)
+    assert(tableSize({"a", "b", "c", "d", "e"}) == 5)
+    assert(tableSize({a = "a", b = "b"}) == 2)
 end
 
 local function strLen(s)
@@ -241,7 +232,7 @@ end
 -- modified from penlight: https://tinyurl.com/37fqwxy8
 local function splitLines(s)
     if s == "" then
-      return {""}
+        return {""}
     end
 
     local res = {}
@@ -708,14 +699,8 @@ end
 local function replaceWithinLine(result, lineNo, startIdx, endIdx, replaceTxt)
     local line = result.lines[lineNo]
 
-    -- print(lineNo, startIdx, endIdx, 'LLL' .. replaceTxt .. 'LLL')
-    -- print('PPP' .. line .. 'PPP')
-
     local newLine = replaceWithinString(line, startIdx, endIdx, replaceTxt)
     result.lines[lineNo] = newLine
-
-    -- print('PPP' .. newLine .. 'PPP')
-    -- print('*******************')
 
     shiftCursorOnEdit(result, lineNo, startIdx, endIdx, replaceTxt)
 end
@@ -861,8 +846,25 @@ end
 -- Advanced Character Operations
 
 local function checkCursorHolding(result)
-    -- TODO: write me
-    print("UNPORTED FUNCTION: checkCursorHolding -----------------------------------")
+    local opener = peek(result.parenStack, 0)
+    local parent = peek(result.parenStack, 1)
+    local holdMinX = 1 -- Lua ONE INDEX
+    if parent then
+        holdMinX = parent.x + 1
+    end
+    local holdMaxX = opener.x
+
+    local holding = result.cursorLine == opener.lineNo and holdMinX <= result.cursorX and result.cursorX <= holdMaxX
+    local shouldCheckPrev = not result.changes and result.prevCursorLine ~= UINT_NULL
+    if shouldCheckPrev then
+        local prevHolding =
+            result.prevCursorLine == opener.lineNo and holdMinX <= result.prevCursorX and result.prevCursorX <= holdMaxX
+        if prevHolding and not holding then
+            error({releaseCursorHold = true})
+        end
+    end
+
+    return holding
 end
 
 local function trackArgTabStop(result, state)
@@ -1121,7 +1123,7 @@ local function clampParenTrailToCursor(result)
         local removeCount = 0
 
         local i = startX
-        while i <= newStartX do -- Lua ONE INDEX adjustment
+        while i <= newStartX do -- Lua ONE INDEX
             local ch = getCharFromString(line, i)
             if isCloseParen(ch) then
                 removeCount = removeCount + 1
@@ -1260,12 +1262,6 @@ local function cleanParenTrail(result)
         else
             spaceCount = spaceCount + 1
         end
-
-        -- print(endX)
-        -- print(lineCh)
-        -- print(newTrail)
-        -- print(i)
-        -- print('99999999999999999999999999')
 
         i = i + 1
     end
@@ -1621,15 +1617,7 @@ local function processLine(result, lineNo)
 
         x = x + 1
     end
-
-    -- print(inspect(result.lines))
-    -- print('kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
-
     processChar(result, NEWLINE)
-
-    -- print(inspect(result.lines))
-    -- print('jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj')
-    -- print('jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj')
 
     if not result.forceBalance then
         checkUnmatchedOutsideParenTrail(result)
@@ -1670,7 +1658,6 @@ local function processError(result, err)
     else
         result.error.name = ERROR_UNHANDLED
         result.error.message = err.stack
-        -- TODO: I don't think this is allowed in Lua?
         error(err)
     end
 end

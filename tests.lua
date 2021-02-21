@@ -35,7 +35,7 @@ local smartModeCases = json.decode(readFile("./test-cases/smart-mode.json"))
 
 -- the test cases all assume 0-indexed values (they originate from parinfer.js)
 -- this function adjusts them +1 for Lua
-local function adjustIndexesForLua (testCase)
+local function adjustIndexesForLua(testCase)
     -- options.cursorX
     if testCase.options and isInteger(testCase.options.cursorX) then
         testCase.options.cursorX = testCase.options.cursorX + 1
@@ -46,16 +46,26 @@ local function adjustIndexesForLua (testCase)
         testCase.options.cursorLine = testCase.options.cursorLine + 1
     end
 
+    -- options.prevCursorX
+    if testCase.options and isInteger(testCase.options.prevCursorX) then
+        testCase.options.prevCursorX = testCase.options.prevCursorX + 1
+    end
+
+    -- options.prevCursorLine
+    if testCase.options and isInteger(testCase.options.prevCursorLine) then
+        testCase.options.prevCursorLine = testCase.options.prevCursorLine + 1
+    end
+
     -- options.changes
     if testCase.options and testCase.options.changes then
-      for _idx, changeItm in pairs(testCase.options.changes) do
-        if isInteger(changeItm.lineNo) then
-          changeItm.lineNo = changeItm.lineNo + 1
+        for _idx, changeItm in pairs(testCase.options.changes) do
+            if isInteger(changeItm.lineNo) then
+                changeItm.lineNo = changeItm.lineNo + 1
+            end
+            if isInteger(changeItm.x) then
+                changeItm.x = changeItm.x + 1
+            end
         end
-        if isInteger(changeItm.x) then
-          changeItm.x = changeItm.x + 1
-        end
-      end
     end
 
     -- result.cursorX
@@ -82,32 +92,32 @@ local function adjustIndexesForLua (testCase)
 
     -- result.parenTrails
     if testCase.result.parenTrails then
-      for _idx, ts in pairs(testCase.result.parenTrails) do
-        if isInteger(ts.lineNo) then
-          ts.lineNo = ts.lineNo + 1
+        for _idx, ts in pairs(testCase.result.parenTrails) do
+            if isInteger(ts.lineNo) then
+                ts.lineNo = ts.lineNo + 1
+            end
+            if isInteger(ts.startX) then
+                ts.startX = ts.startX + 1
+            end
+            if isInteger(ts.endX) then
+                ts.endX = ts.endX + 1
+            end
         end
-        if isInteger(ts.startX) then
-          ts.startX = ts.startX + 1
-        end
-        if isInteger(ts.endX) then
-          ts.endX = ts.endX + 1
-        end
-      end
     end
 
     -- result.tabStops
     if testCase.result.tabStops then
-      for _idx, ts in pairs(testCase.result.tabStops) do
-        if isInteger(ts.x) then
-          ts.x = ts.x + 1
+        for _idx, ts in pairs(testCase.result.tabStops) do
+            if isInteger(ts.x) then
+                ts.x = ts.x + 1
+            end
+            if isInteger(ts.lineNo) then
+                ts.lineNo = ts.lineNo + 1
+            end
+            if isInteger(ts.argX) then
+                ts.argX = ts.argX + 1
+            end
         end
-        if isInteger(ts.lineNo) then
-          ts.lineNo = ts.lineNo + 1
-        end
-        if isInteger(ts.argX) then
-          ts.argX = ts.argX + 1
-        end
-      end
     end
 
     return testCase
@@ -271,15 +281,19 @@ function testIndentMode()
 end
 
 function testParenMode()
-  for _key, testCase in pairs(parenModeCases) do
-      print("Testing Paren Mode #" .. testCase.id)
-      local adjustedTestCase = adjustIndexesForLua(testCase)
-      assertStructure1(adjustedTestCase, "paren")
-  end
+    for _key, testCase in pairs(parenModeCases) do
+        print("Testing Paren Mode #" .. testCase.id)
+        local adjustedTestCase = adjustIndexesForLua(testCase)
+        assertStructure1(adjustedTestCase, "paren")
+    end
 end
 
 function testSmartMode()
-    -- TODO: write me
+    for _key, testCase in pairs(smartModeCases) do
+        print("Testing Smart Mode #" .. testCase.id)
+        local adjustedTestCase = adjustIndexesForLua(testCase)
+        assertStructure1(adjustedTestCase, "smart")
+    end
 end
 
 os.exit(lu.LuaUnit.run())

@@ -4,10 +4,11 @@
 
 - [x] set up test suite
 - [x] Indent Mode tests pass
+- [x] Paren Mode tests pass
+- [x] Smart Mode tests pass
+- [ ] support crlf and lf
 - [ ] allow to run a single test id via CLI
-- [ ] port over additional test functionality
-- [ ] Paren Mode tests pass
-- [ ] Smart Mode tests pass
+- [ ] additional smart mode tests (adjustable comment chars)
 
 ## Usage
 

@@ -125,16 +125,6 @@ end
 
 -- NOTE: this is named "assertStructure" in parinfer test.js
 local function assertStructure2(actual, expected)
-    -- print("\n\n")
-    -- print("Result from test suite: >>>>>>>>>>>>>>>>>>>>>>>>>>>")
-    -- print(inspect(expected))
-    -- print("\n")
-    -- print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-    -- print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-    -- print("Result from parinfer.lua >>>>>>>>>>>>>>>>>>>>>>>>>>>")
-    -- print(inspect(actual))
-    -- print("\n\n")
-
     lu.assertIsTable(actual)
     lu.assertIsTable(expected)
     lu.assertIsString(actual.text)
@@ -260,6 +250,9 @@ end
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- LuaUnit Tests
 
+-- NOTE: luaUnit test functions must start with "test*" (like the four below)
+-- C. Oakman, 21 Feb 2021
+
 function testModuleBasics()
     lu.assertIsTable(indentModeCases, "Unable to load Indent Mode Test cases. Maybe your JSON is wrong?")
     lu.assertIsTable(parenModeCases, "Unable to load Paren Mode Test cases. Maybe your JSON is wrong?")
@@ -273,24 +266,27 @@ function testModuleBasics()
 end
 
 function testIndentMode()
+    print('\nIndent Mode:')
     for _key, testCase in pairs(indentModeCases) do
-        print("Testing Indent Mode #" .. testCase.id)
+        print("  Indent Mode Case #" .. testCase.id)
         local adjustedTestCase = adjustIndexesForLua(testCase)
         assertStructure1(adjustedTestCase, "indent")
     end
 end
 
 function testParenMode()
+    print('\nTesting Paren Mode:')
     for _key, testCase in pairs(parenModeCases) do
-        print("Testing Paren Mode #" .. testCase.id)
+        print("  Paren Mode Case #" .. testCase.id)
         local adjustedTestCase = adjustIndexesForLua(testCase)
         assertStructure1(adjustedTestCase, "paren")
     end
 end
 
 function testSmartMode()
+    print('\nTesting Smart Mode:')
     for _key, testCase in pairs(smartModeCases) do
-        print("Testing Smart Mode #" .. testCase.id)
+        print("  Smart Mode Case #" .. testCase.id)
         local adjustedTestCase = adjustIndexesForLua(testCase)
         assertStructure1(adjustedTestCase, "smart")
     end

@@ -1005,18 +1005,15 @@ end
 -- Cursor Functions
 
 local function isCursorLeftOf(cursorX, cursorLine, x, lineNo)
-    -- TODO: write me
-    print("UNPORTED FUNCTION: isCursorLeftOf -----------------------------------")
+    return cursorLine == lineNo and x ~= UINT_NULL and cursorX ~= UINT_NULL and cursorX <= x
 end
 
 local function isCursorRightOf(cursorX, cursorLine, x, lineNo)
-    -- TODO: write me
-    print("UNPORTED FUNCTION: isCursorRightOf -----------------------------------")
+  return cursorLine == lineNo and x ~= UINT_NULL and cursorX ~= UINT_NULL and cursorX > x
 end
 
 local function isCursorInComment(result, cursorX, cursorLine)
-    -- TODO: write me
-    print("UNPORTED FUNCTION: isCursorInComment -----------------------------------")
+    return isCursorRightOf(cursorX, cursorLine, result.commentX, result.lineNo)
 end
 
 local function handleChangeDelta(result)

@@ -33,6 +33,44 @@ local indentModeCases = json.decode(readFile("./test-cases/indent-mode.json"))
 local parenModeCases = json.decode(readFile("./test-cases/paren-mode.json"))
 local smartModeCases = json.decode(readFile("./test-cases/smart-mode.json"))
 
+-- the test cases all assume 0-indexed values (they originate from parinfer.js)
+-- this function adjusts them +1 for Lua
+local function adjustIndexesForLua (testCase)
+    -- options.cursorX
+    if testCase.options and isInteger(testCase.options.cursorX) then
+        testCase.options.cursorX = testCase.options.cursorX + 1
+    end
+
+    -- options.cursorLine
+    if testCase.options and isInteger(testCase.options.cursorLine) then
+        testCase.options.cursorLine = testCase.options.cursorLine + 1
+    end
+
+    -- result.cursorX
+    -- result.cursorLine
+    if testCase.result then
+        if isInteger(testCase.result.cursorX) then
+            testCase.result.cursorX = testCase.result.cursorX + 1
+        end
+        if isInteger(testCase.options.cursorLine) then
+            testCase.result.cursorLine = testCase.result.cursorLine + 1
+        end
+    end
+
+    -- result.error.lineNo
+    -- result.error.x
+    if testCase.result and testCase.result.error then
+        if isInteger(testCase.result.error.lineNo) then
+            testCase.result.error.lineNo = testCase.result.error.lineNo + 1
+        end
+        if isInteger(testCase.result.error.x) then
+            testCase.result.error.x = testCase.result.error.x + 1
+        end
+    end
+    
+    return testCase
+end
+
 -- NOTE: this is named "assertStructure" in parinfer test.js
 local function assertStructure2(actual, expected)
     -- print("\n\n")
@@ -59,8 +97,8 @@ local function assertStructure2(actual, expected)
     if (actual.error) then
         -- NOTE: we currently do not test 'message' and 'extra'
         lu.assertEquals(actual.error.name, expected.error.name)
-        lu.assertEquals(actual.error.lineNo, expected.error.lineNo + 1) -- Lua ONE INDEX
-        lu.assertEquals(actual.error.x, expected.error.x + 1) -- Lua ONE INDEX
+        lu.assertEquals(actual.error.lineNo, expected.error.lineNo)
+        lu.assertEquals(actual.error.x, expected.error.x)
     end
 
     if (expected.tabStops) then
@@ -185,7 +223,8 @@ end
 function testIndentMode()
     for _key, testCase in pairs(indentModeCases) do
         print("Testing Indent Mode #" .. testCase.id)
-        assertStructure1(testCase, "indent")
+        local adjustedTestCase = adjustIndexesForLua(testCase)
+        assertStructure1(adjustedTestCase, "indent")
     end
 end
 

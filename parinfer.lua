@@ -1556,8 +1556,8 @@ local function setTabStops(result)
 
     if result.mode == PAREN_MODE then
         local parenTrailOpenersLen = tableSize(result.parenTrail.openers)
-        local i2 = parenTrailOpenersLen - 1
-        while (i2 >= 0) do
+        local i2 = parenTrailOpenersLen -- Lua ONE INDEX
+        while (i2 > 0) do
             local ts2 = makeTabStop(result, result.parenTrail.openers[i2])
             stackPush(result.tabStops, ts2)
             i2 = i2 - 1

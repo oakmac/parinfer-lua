@@ -262,13 +262,13 @@ function testModuleBasics()
     lu.assertIsString(parinfer.version)
 end
 
--- function testIndentMode()
---     for _key, testCase in pairs(indentModeCases) do
---         print("Testing Indent Mode #" .. testCase.id)
---         local adjustedTestCase = adjustIndexesForLua(testCase)
---         assertStructure1(adjustedTestCase, "indent")
---     end
--- end
+function testIndentMode()
+    for _key, testCase in pairs(indentModeCases) do
+        print("Testing Indent Mode #" .. testCase.id)
+        local adjustedTestCase = adjustIndexesForLua(testCase)
+        assertStructure1(adjustedTestCase, "indent")
+    end
+end
 
 function testParenMode()
   for _key, testCase in pairs(parenModeCases) do

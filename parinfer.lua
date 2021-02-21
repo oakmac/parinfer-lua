@@ -266,7 +266,7 @@ local function splitLines(s)
     local len = strLen(s)
     local lastCh = getCharFromString(s, len)
     if lastCh == "\n" then
-      table.insert(res, "")
+        table.insert(res, "")
     end
 
     return res
@@ -1279,7 +1279,7 @@ rememberParenTrail = function(result)
     end
 end
 
-updateRememberedParenTrail = function (result)
+updateRememberedParenTrail = function(result)
     local trail = peek(result.parenTrails, 0)
     if not trail or trail.lineNo ~= result.parenTrail.lineNo then
         rememberParenTrail(result)
@@ -1408,8 +1408,36 @@ local function onLeadingCloseParen(result)
 end
 
 local function onCommentLine(result)
-    -- TODO: write me
-    print("UNPORTED FUNCTION: onCommentLine -----------------------------------")
+    local parenTrailLen = tableSize(result.parenTrail.openers)
+
+    -- restore the openers matching the previous paren trail
+    if result.mode == PAREN_MODE then
+        local i = 0
+        while i < parenTrailLen do
+            local opener = peek(result.parenTrail.openers, i)
+            stackPush(result.parenStack, opener)
+            i = i + 1
+        end
+    end
+
+    local openerIdx = getParentOpenerIndex(result, result.x)
+    local opener = peek(result.parenStack, openerIdx)
+    if opener then
+        -- shift the comment line based on the parent open paren
+        if shouldAddOpenerIndent(result, opener) then
+            addIndent(result, opener.indentDelta)
+        end
+    -- TODO: store some information here if we need to place close-parens after comment lines
+    end
+
+    -- repop the openers matching the previous paren trail
+    if result.mode == PAREN_MODE then
+        local i2 = 0
+        while i2 < parenTrailLen do
+            stackPop(result.parenStack)
+            i2 = i2 + 1
+        end
+    end
 end
 
 local function checkIndent(result)
@@ -1425,15 +1453,15 @@ local function checkIndent(result)
 end
 
 local function makeTabStop(result, opener)
-  local tabStop = {
-    ch = opener.ch,
-    x = opener.x,
-    lineNo = opener.lineNo
-  }
-  if isPositiveInt(opener.argX) then
-    tabStop.argX = opener.argX
-  end
-  return tabStop
+    local tabStop = {
+        ch = opener.ch,
+        x = opener.x,
+        lineNo = opener.lineNo
+    }
+    if isPositiveInt(opener.argX) then
+        tabStop.argX = opener.argX
+    end
+    return tabStop
 end
 
 local function getTabStopLine(result)
@@ -1444,42 +1472,42 @@ local function getTabStopLine(result)
 end
 
 local function setTabStops(result)
-  if getTabStopLine(result) ~= result.lineNo then
-    return
-  end
-
-  local parenStackLen = tableSize(result.parenStack)
-  local i = 1
-  while (i <= parenStackLen) do -- Lua ONE INDEX
-    local ts = makeTabStop(result, result.parenStack[i])
-    stackPush(result.tabStops, ts)
-    i = i + 1
-  end
-
-  if result.mode == PAREN_MODE then
-    local parenTrailOpenersLen = tableSize(result.parenTrail.openers)
-    local i2 = parenTrailOpenersLen - 1
-    while (i2 >= 0) do
-      local ts2 = makeTabStop(result, result.parenTrail.openers[i2])
-      stackPush(result.tabStops, ts2)
-      i2 = i2 - 1
+    if getTabStopLine(result) ~= result.lineNo then
+        return
     end
-  end
 
-  -- remove argX if it falls to the right of the next stop
-  local tabStopsLen = tableSize(result.tabStops)
-  local i3 = 1
-  while i3 <= tabStopsLen do -- Lua ONE INDEX
-    local currentX = result.tabStops[i3].x
-    local prevTabStop = result.tabStops[i3 - 1]
-    if prevTabStop then
-      local prevArgX = prevTabStop.argX
-      if isInteger(prevArgX) and prevArgX >= currentX then
-        prevTabStop.argX = nil
-      end
+    local parenStackLen = tableSize(result.parenStack)
+    local i = 1
+    while (i <= parenStackLen) do -- Lua ONE INDEX
+        local ts = makeTabStop(result, result.parenStack[i])
+        stackPush(result.tabStops, ts)
+        i = i + 1
     end
-    i3 = i3 + 1
-  end
+
+    if result.mode == PAREN_MODE then
+        local parenTrailOpenersLen = tableSize(result.parenTrail.openers)
+        local i2 = parenTrailOpenersLen - 1
+        while (i2 >= 0) do
+            local ts2 = makeTabStop(result, result.parenTrail.openers[i2])
+            stackPush(result.tabStops, ts2)
+            i2 = i2 - 1
+        end
+    end
+
+    -- remove argX if it falls to the right of the next stop
+    local tabStopsLen = tableSize(result.tabStops)
+    local i3 = 1
+    while i3 <= tabStopsLen do -- Lua ONE INDEX
+        local currentX = result.tabStops[i3].x
+        local prevTabStop = result.tabStops[i3 - 1]
+        if prevTabStop then
+            local prevArgX = prevTabStop.argX
+            if isInteger(prevArgX) and prevArgX >= currentX then
+                prevTabStop.argX = nil
+            end
+        end
+        i3 = i3 + 1
+    end
 end
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1493,28 +1521,15 @@ local function processChar(result, ch)
 
     handleChangeDelta(result)
 
-    -- print(inspect(result.lines))
-    -- print('~~~~~~~~~~')
-
     if result.trackingIndent then
-      -- DEBUGGING 2000 - this is where the error is happening
-
         checkIndent(result)
     end
-
-    -- print(inspect(result.lines))
-    -- print('~~~~~~~~~~~~~~~~~~~~')
 
     if result.skipChar then
         result.ch = ""
     else
         onChar(result)
     end
-
-    -- print(inspect(result.lines))
-    -- print('xxx' .. ch .. 'xxx' .. result.x .. "xxx" .. result.lineNo)
-    -- print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-
     commitChar(result, origCh)
 end
 

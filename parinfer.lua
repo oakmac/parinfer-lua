@@ -264,6 +264,13 @@ local function splitLines(s)
     if pos <= #s then
         table.insert(res, string.sub(s, pos))
     end
+
+    local len = strLen(s)
+    local lastCh = getCharFromString(s, len)
+    if lastCh == "\n" then
+      table.insert(res, "")
+    end
+
     return res
 end
 
@@ -1439,8 +1446,15 @@ local function checkIndent(result)
 end
 
 local function makeTabStop(result, opener)
-    -- TODO: write me
-    print("UNPORTED FUNCTION: makeTabStop -----------------------------------")
+  local tabStop = {
+    ch = opener.ch,
+    x = opener.x,
+    lineNo = opener.lineNo
+  }
+  if isPositiveInt(opener.argX) then
+    tabStop.argX = opener.argX
+  end
+  return tabStop
 end
 
 local function getTabStopLine(result)
@@ -1451,33 +1465,42 @@ local function getTabStopLine(result)
 end
 
 local function setTabStops(result)
-    -- TODO: write me
-    print("UNPORTED FUNCTION: setTabStops -----------------------------------")
+  if getTabStopLine(result) ~= result.lineNo then
+    return
+  end
 
-    -- FIXME: refactor this to not use the early return
-    --if (getTabStopLine(result) ~= result.lineNo) then
-    --  return
-    --end
-    --
-    --    for idx, _itm in pairs(result.parenStack) do
-    --        table.insert(result.tabStops, makeTabStop(result, result.parenStack[idx]))
-    --    end
-    --
-    --
-    --    if result.mode == PAREN_MODE then
-    --      for (i = result.parenTrail.openers.length - 1; i >= 0; i--) {
-    --        result.tabStops.push(makeTabStop(result, result.parenTrail.openers[i]))
-    --      }
-    --    end
+  local parenStackLen = tableSize(result.parenStack)
+  local i = 1
+  while (i <= parenStackLen) do -- Lua ONE INDEX
+    local ts = makeTabStop(result, result.parenStack[i])
+    stackPush(result.tabStops, ts)
+    i = i + 1
+  end
 
-    -- remove argX if it falls to the right of the next stop
-    --for (i = 1; i < result.tabStops.length; i++) {
-    --  local x = result.tabStops[i].x
-    --  local prevArgX = result.tabStops[i - 1].argX
-    --  if (prevArgX != null and prevArgX >= x) {
-    --    delete result.tabStops[i - 1].argX
-    --  }
-    --}
+  if result.mode == PAREN_MODE then
+    local parenTrailOpenersLen = tableSize(result.parenTrail.openers)
+    local i2 = parenTrailOpenersLen - 1
+    while (i2 >= 0) do
+      local ts2 = makeTabStop(result, result.parenTrail.openers[i2])
+      stackPush(result.tabStops, ts2)
+      i2 = i2 - 1
+    end
+  end
+
+  -- remove argX if it falls to the right of the next stop
+  local tabStopsLen = tableSize(result.tabStops)
+  local i3 = 1
+  while i3 <= tabStopsLen do -- Lua ONE INDEX
+    local currentX = result.tabStops[i3].x
+    local prevTabStop = result.tabStops[i3 - 1]
+    if prevTabStop then
+      local prevArgX = prevTabStop.argX
+      if isInteger(prevArgX) and prevArgX >= currentX then
+        prevTabStop.argX = nil
+      end
+    end
+    i3 = i3 + 1
+  end
 end
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

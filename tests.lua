@@ -52,7 +52,7 @@ local function adjustIndexesForLua (testCase)
         if isInteger(testCase.result.cursorX) then
             testCase.result.cursorX = testCase.result.cursorX + 1
         end
-        if isInteger(testCase.options.cursorLine) then
+        if isInteger(testCase.result.cursorLine) then
             testCase.result.cursorLine = testCase.result.cursorLine + 1
         end
     end
@@ -67,7 +67,7 @@ local function adjustIndexesForLua (testCase)
             testCase.result.error.x = testCase.result.error.x + 1
         end
     end
-    
+
     return testCase
 end
 

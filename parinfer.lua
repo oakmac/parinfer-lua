@@ -557,7 +557,7 @@ local function createError(result, name)
     local keyX = "inputX"
     if result.partialResult then
         keyLineNo = "lineNo"
-        keyX = 'x'
+        keyX = "x"
     end
 
     local lineNo = 0
@@ -1009,7 +1009,7 @@ local function isCursorLeftOf(cursorX, cursorLine, x, lineNo)
 end
 
 local function isCursorRightOf(cursorX, cursorLine, x, lineNo)
-  return cursorLine == lineNo and x ~= UINT_NULL and cursorX ~= UINT_NULL and cursorX > x
+    return cursorLine == lineNo and x ~= UINT_NULL and cursorX ~= UINT_NULL and cursorX > x
 end
 
 local function isCursorInComment(result, cursorX, cursorLine)
@@ -1047,6 +1047,9 @@ local function isCursorClampingParenTrail(result, cursorX, cursorLine)
 end
 
 local function clampParenTrailToCursor(result)
+    -- print(inspect(result))
+    -- print('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')
+
     local startX = result.parenTrail.startX
     local endX = result.parenTrail.endX
 
@@ -1078,6 +1081,9 @@ local function clampParenTrailToCursor(result)
         result.parenTrail.clamped.openers = sliceTable(openers, 1, removeCount) -- Lua ONE INDEX
         result.parenTrail.clamped.startX = startX
         result.parenTrail.clamped.endX = endX
+
+    -- print(inspect(result.parenTrail))
+    -- print('BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB')
     end
 end
 
@@ -1235,7 +1241,6 @@ local function checkUnmatchedOutsideParenTrail(result)
     -- print(inspect(result.parenTrail.openers))
     -- print('zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz')
 
-
     if (cache and cache.x < result.parenTrail.startX) then
         -- print(inspect(result.parenTrail))
         -- print("throw 2")
@@ -1293,16 +1298,16 @@ end
 local function updateRememberedParenTrail(result)
     local trail = peek(result.parenTrails, 0)
     if not trail or trail.lineNo ~= result.parenTrail.lineNo then
-      rememberParenTrail(result)
+        rememberParenTrail(result)
     else
-      trail.endX = result.parenTrail.endX
-      if result.returnParens then
-        -- this is almost certainly buggy
-        -- commenting this out has no effect on the test suite
-        -- -- C. Oakman, 19 Feb 2021
-        local opener = peek(result.parenTrail.openers, 0)
-        opener.closer.trail = trail
-      end
+        trail.endX = result.parenTrail.endX
+        if result.returnParens then
+            -- this is almost certainly buggy
+            -- commenting this out has no effect on the test suite
+            -- -- C. Oakman, 19 Feb 2021
+            local opener = peek(result.parenTrail.openers, 0)
+            opener.closer.trail = trail
+        end
     end
 end
 

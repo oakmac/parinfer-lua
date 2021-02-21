@@ -240,6 +240,10 @@ end
 
 -- modified from penlight: https://tinyurl.com/37fqwxy8
 local function splitLines(s)
+    if s == "" then
+      return {""}
+    end
+
     local res = {}
     local pos = 1
     while true do
@@ -375,13 +379,79 @@ end
 -- Options Structure
 
 local function transformChange(change)
-    -- TODO: write me
-    print("UNPORTED FUNCTION: transformChange -----------------------------------")
+    if not change then
+        return nil
+    end
+
+    local newLines = splitLines(change.newText)
+    local oldLines = splitLines(change.oldText)
+
+    -- single line case:
+    --     (defn foo| [])
+    --              ^ newEndX, newEndLineNo
+    --           +++
+
+    -- multi line case:
+    --     (defn foo
+    --           ++++
+    --        "docstring."
+    --     ++++++++++++++++
+    --       |[])
+    --     ++^ newEndX, newEndLineNo
+
+    local prevOldLine = peek(oldLines, 0)
+    local lastOldLineLen = strLen(prevOldLine)
+
+    local prevNewLine = peek(newLines, 0)
+    local lastNewLineLen = strLen(prevNewLine)
+
+    local carryOverOldX = 1 -- Lua ONE INDEX
+    if tableSize(oldLines) == 1 then
+        carryOverOldX = change.x
+    end
+    local oldEndX = carryOverOldX + lastOldLineLen
+
+    local carryOverNewX = 1 -- Lua ONE INDEX
+    if tableSize(newLines) == 1 then
+        carryOverNewX = change.x
+    end
+    local newEndX = carryOverNewX + lastNewLineLen
+
+    local newEndLineNo = change.lineNo + tableSize(newLines) - 1
+
+    return {
+        x = change.x,
+        lineNo = change.lineNo,
+        oldText = change.oldText,
+        newText = change.newText,
+        oldEndX = oldEndX,
+        newEndX = newEndX,
+        newEndLineNo = newEndLineNo,
+        lookupLineNo = newEndLineNo,
+        lookupX = newEndX
+    }
 end
 
 local function transformChanges(changes)
-    -- TODO: write me
-    print("UNPORTED FUNCTION: transformChanges -----------------------------------")
+    if tableSize(changes) == 0 then
+        return nil
+    else
+        local lines = {}
+        local changesLen = tableSize(changes)
+        local i = 1 -- Lua ONE INDEX
+        while i <= changesLen do
+            local change = transformChange(changes[i])
+            local line = lines[change.lookupLineNo]
+            if not line then
+                line = {}
+                lines[change.lookupLineNo] = line
+            end
+            line[change.lookupX] = change
+
+            i = i + 1
+        end
+        return lines
+    end
 end
 
 local function parseOptions(options)

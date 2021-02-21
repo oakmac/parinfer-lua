@@ -68,6 +68,36 @@ local function adjustIndexesForLua (testCase)
         end
     end
 
+    -- result.tabStops
+    if testCase.result.tabStops then
+      for _idx, ts in pairs(testCase.result.tabStops) do
+        if isInteger(ts.x) then
+          ts.x = ts.x + 1
+        end
+        if isInteger(ts.lineNo) then
+          ts.lineNo = ts.lineNo + 1
+        end
+        if isInteger(ts.argX) then
+          ts.argX = ts.argX + 1
+        end
+      end
+    end
+
+    -- result.parenTrails
+    if testCase.result.parenTrails then
+      for _idx, ts in pairs(testCase.result.parenTrails) do
+        if isInteger(ts.lineNo) then
+          ts.lineNo = ts.lineNo + 1
+        end
+        if isInteger(ts.startX) then
+          ts.startX = ts.startX + 1
+        end
+        if isInteger(ts.endX) then
+          ts.endX = ts.endX + 1
+        end
+      end
+    end
+
     return testCase
 end
 
@@ -102,7 +132,7 @@ local function assertStructure2(actual, expected)
     end
 
     if (expected.tabStops) then
-        lu.assertEquals(actual.tabStops == nil, false)
+        lu.assertIsTable(actual.tabStops)
 
         local expectedTSLen = tableSize(expected.tabStops)
         local actualTSLen = tableSize(actual.tabStops)

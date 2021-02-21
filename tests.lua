@@ -26,7 +26,7 @@ local function readFile(path)
     return content
 end
 
--- TODO: add additional smart mode cases here
+-- TODO: add additional test cases here (optional comments Table)
 
 -- load test cases JSON
 local indentModeCases = json.decode(readFile("./test-cases/indent-mode.json"))
@@ -250,16 +250,20 @@ function testModuleBasics()
     lu.assertIsString(parinfer.version)
 end
 
-function testIndentMode()
-    for _key, testCase in pairs(indentModeCases) do
-        print("Testing Indent Mode #" .. testCase.id)
-        local adjustedTestCase = adjustIndexesForLua(testCase)
-        assertStructure1(adjustedTestCase, "indent")
-    end
-end
+-- function testIndentMode()
+--     for _key, testCase in pairs(indentModeCases) do
+--         print("Testing Indent Mode #" .. testCase.id)
+--         local adjustedTestCase = adjustIndexesForLua(testCase)
+--         assertStructure1(adjustedTestCase, "indent")
+--     end
+-- end
 
 function testParenMode()
-    -- TODO: write me
+  for _key, testCase in pairs(parenModeCases) do
+      print("Testing Paren Mode #" .. testCase.id)
+      local adjustedTestCase = adjustIndexesForLua(testCase)
+      assertStructure1(adjustedTestCase, "paren")
+  end
 end
 
 function testSmartMode()

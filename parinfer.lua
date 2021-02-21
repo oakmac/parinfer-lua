@@ -848,6 +848,10 @@ local function onOpenParen(result)
         end
 
         stackPush(result.parenStack, opener)
+
+        -- print(inspect(result.parenStack))
+        -- print('77777777777777777777777777777777777777777777777777777777')
+
         result.trackingArgTabStop = "space"
     end
 end
@@ -1047,9 +1051,6 @@ local function isCursorClampingParenTrail(result, cursorX, cursorLine)
 end
 
 local function clampParenTrailToCursor(result)
-    -- print(inspect(result))
-    -- print('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')
-
     local startX = result.parenTrail.startX
     local endX = result.parenTrail.endX
 
@@ -1063,7 +1064,7 @@ local function clampParenTrailToCursor(result)
         local removeCount = 0
 
         local i = startX
-        while i < newStartX do
+        while i <= newStartX do -- Lua ONE INDEX adjustment
             local ch = getCharFromString(line, i)
             if isCloseParen(ch) then
                 removeCount = removeCount + 1
@@ -1081,9 +1082,6 @@ local function clampParenTrailToCursor(result)
         result.parenTrail.clamped.openers = sliceTable(openers, 1, removeCount) -- Lua ONE INDEX
         result.parenTrail.clamped.startX = startX
         result.parenTrail.clamped.endX = endX
-
-    -- print(inspect(result.parenTrail))
-    -- print('BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB')
     end
 end
 
@@ -1235,15 +1233,7 @@ end
 
 local function checkUnmatchedOutsideParenTrail(result)
     local cache = result.errorPosCache[ERROR_UNMATCHED_CLOSE_PAREN]
-
-    -- 1040 debugging - result.parenTrail.openers has a .closer and .children here
-    -- parinfer.js has nothing
-    -- print(inspect(result.parenTrail.openers))
-    -- print('zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz')
-
     if (cache and cache.x < result.parenTrail.startX) then
-        -- print(inspect(result.parenTrail))
-        -- print("throw 2")
         error(createError(result, ERROR_UNMATCHED_CLOSE_PAREN))
     end
 end
@@ -1523,22 +1513,12 @@ local function processChar(result, ch)
 end
 
 local function processLine(result, lineNo)
-    --print(inspect(result))
-    --print('33333333333333333333333333333333333333333333333333333333333')
-
     initLine(result)
-
-    -- print('after initLine')
 
     local line = result.inputLines[lineNo]
     stackPush(result.lines, line)
 
-    --print(inspect(result))
-    --print("****************************************************")
-
     setTabStops(result)
-
-    -- print('after setTabStops')
 
     local lineLength = strLen(line)
     local x = 1 -- Lua ONE INDEX
@@ -1552,6 +1532,29 @@ local function processLine(result, lineNo)
         -- print(x, ch, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
 
         x = x + 1
+
+
+
+
+        -- for _k, v in pairs(result.parenStack) do
+        --   print('{')
+        --   print('argX:', v.argX)
+        --   print('ch:', v.ch)
+        --   print('inputLineNo:', v.inputLineNo)
+        --   print('inputX:', v.inputX)
+        --   print('lineNo:', v.lineNo)
+        --   print('x:', v.x)
+        --   print('}')
+        -- end
+        -- print('****************************************************')
+        -- print('************* ' .. x .. ' ***************************************')
+        -- print('****************************************************')
+
+
+
+
+
+
     end
 
     if trace then
@@ -1596,10 +1599,6 @@ local function finalizeResult(result)
 end
 
 local function processError(result, err)
-    -- print(inspect(result))
-    -- print(inspect(err))
-    -- print("kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk")
-
     result.success = false
     if err.parinferError then
         err.parinferError = nil
@@ -1617,11 +1616,7 @@ local function processTextInternal(result)
         result.inputLineNo = idx
         processLine(result, idx)
     end
-
-    --print(inspect(result))
     finalizeResult(result)
-    --print'\n\n\n'
-    --print(inspect(result))
 end
 
 local doThePcall = true
@@ -1641,13 +1636,8 @@ local function processText(text, options, mode, smart)
             return result
         else
             if err.leadingCloseParen or err.releaseCursorHold then
-                print("re-tryable class of error")
                 return processText(text, options, PAREN_MODE, smart)
             end
-
-            -- print("legit error")
-            -- print((inspect(err)))
-            -- print('iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii')
 
             processError(result, err)
             return result

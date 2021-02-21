@@ -3,6 +3,10 @@ local json = require("libs/json")
 local inspect = require("libs/inspect")
 local parinfer = require("parinfer")
 
+local function isInteger(i)
+    return type(i) == "number" and i == math.floor(i)
+end
+
 local function tableSize(t)
     local count = 0
     for _key, _val in pairs(t) do
@@ -30,7 +34,7 @@ local parenModeCases = json.decode(readFile("./test-cases/paren-mode.json"))
 local smartModeCases = json.decode(readFile("./test-cases/smart-mode.json"))
 
 -- NOTE: this is named "assertStructure" in parinfer test.js
-function assertStructure2(actual, expected)
+local function assertStructure2(actual, expected)
     -- print("\n\n")
     -- print("Result from test suite: >>>>>>>>>>>>>>>>>>>>>>>>>>>")
     -- print(inspect(expected))
@@ -86,32 +90,34 @@ function assertStructure2(actual, expected)
 end
 
 -- NOTE: this is named "testStructure" in parinfer test.js
-function assertStructure1(testCase, mode)
+local function assertStructure1(testCase, mode)
     local expected = testCase.result
-    local inputText = testCase.text
+    local text = testCase.text
     local options = testCase.options
+    local result1, result2, result3
 
     -- We are not yet verifying that the returned paren tree is correct.
     -- We are simply setting it to ensure it is constructed in a way that doesn't
     -- throw an exception.
     options.returnParens = true
 
-    -- run Parinfer
-    local result
+    -- "it should generate the correct result structure"
+    result1 = nil
     if mode == "indent" then
-        result = parinfer.indentMode(inputText, options)
+        result1 = parinfer.indentMode(text, options)
     elseif mode == "paren" then
-        result = parinfer.parenMode(inputText, options)
+        result1 = parinfer.parenMode(text, options)
     elseif mode == "smart" then
-        result = parinfer.smartMode(inputText, options)
+        result1 = parinfer.smartMode(text, options)
     end
+    lu.assertIsTable(result1)
 
-    assertStructure2(result, expected)
+    assertStructure2(result1, expected)
 
     -- FIXME: not checking paren trails after this main check
     -- (causing problems, and not a priority at time of writing)
-    if (result.parenTrails) then
-        actual.parenTrails = nil
+    if result1.parenTrails then
+        result1.parenTrails = nil
     end
 
     -- bypass the next checks if these conditions exist
@@ -119,8 +125,46 @@ function assertStructure1(testCase, mode)
         return
     end
 
-    -- TODO: idempotence check
-    -- TODO: cross-mode check
+    -- "it should generate the same result structure on idempotence check"
+    local options2 = {
+        cursorX = result1.cursorX,
+        cursorLine = result1.cursorLine
+    }
+    if testCase.options and testCase.options.commentChars then
+        options2.commentChars = testCase.options.commentChars
+    end
+
+    result2 = nil
+    if mode == "indent" then
+        result2 = parinfer.indentMode(result1.text, options2)
+    elseif mode == "paren" then
+        result2 = parinfer.parenMode(result1.text, options2)
+    elseif mode == "smart" then
+        result2 = parinfer.smartMode(result1.text, options2)
+    end
+    lu.assertIsTable(result2)
+
+    assertStructure2(result2, result1)
+
+    -- "it should generate the same result structure on cross-mode check"
+    local hasCursor = isInteger(expected.cursorX)
+    local options3 = {}
+    if testCase.options and testCase.options.commentChars then
+        options3.commentChars = testCase.options.commentChars
+    end
+    if not hasCursor then
+        result3 = nil
+        if mode == "indent" then
+            result3 = parinfer.indentMode(result1.text, options3)
+        elseif mode == "paren" then
+            result3 = parinfer.parenMode(result1.text, options3)
+        elseif mode == "smart" then
+            result3 = parinfer.smartMode(result1.text, options3)
+        end
+        lu.assertIsTable(result3)
+
+        assertStructure2(result3, result1)
+    end
 end
 
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

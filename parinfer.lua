@@ -15,7 +15,7 @@ local inspect = require("libs/inspect")
 local M = {}
 
 -- forward declarations
-local resetParenTrail, rememberParenTrail
+local resetParenTrail, rememberParenTrail, updateRememberedParenTrail
 
 local trace = false
 
@@ -1279,7 +1279,7 @@ rememberParenTrail = function(result)
     end
 end
 
-local function updateRememberedParenTrail(result)
+updateRememberedParenTrail = function (result)
     local trail = peek(result.parenTrails, 0)
     if not trail or trail.lineNo ~= result.parenTrail.lineNo then
         rememberParenTrail(result)

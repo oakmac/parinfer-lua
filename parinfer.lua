@@ -234,9 +234,7 @@ if RUN_ASSERTS then
 end
 
 local function getLineEnding(text)
-    -- TODO: write me
-    print("UNPORTED FUNCTION: getLineEnding -----------------------------------")
-
+    -- TODO: allow for "\r\n" as well as "\n" here
     return "\n"
 end
 
@@ -481,41 +479,41 @@ local function getInitialResult(text, options, mode, smart)
 
     -- merge user options if they are valid
     if (options) then
-        if (isInteger(options.cursorX)) then
+        if isInteger(options.cursorX) then
             result.cursorX = options.cursorX
             result.origCursorX = options.cursorX
         end
 
-        if (isInteger(options.cursorLine)) then
+        if isInteger(options.cursorLine) then
             result.cursorLine = options.cursorLine
             result.origCursorLine = options.cursorLine
         end
 
-        if (isInteger(options.prevCursorX)) then
+        if isInteger(options.prevCursorX) then
             result.prevCursorX = options.prevCursorX
         end
-        if (isInteger(options.prevCursorLine)) then
+        if isInteger(options.prevCursorLine) then
             result.prevCursorLine = options.prevCursorLine
         end
-        if (isInteger(options.selectionStartLine)) then
+        if isInteger(options.selectionStartLine) then
             result.selectionStartLine = options.selectionStartLine
         end
-        if (isTable(options.changes)) then
+        if isTable(options.changes) then
             result.changes = transformChanges(options.changes)
         end
-        if (isBoolean(options.partialResult)) then
+        if isBoolean(options.partialResult) then
             result.partialResult = options.partialResult
         end
-        if (isBoolean(options.forceBalance)) then
+        if isBoolean(options.forceBalance) then
             result.forceBalance = options.forceBalance
         end
-        if (isBoolean(options.returnParens)) then
+        if isBoolean(options.returnParens) then
             result.returnParens = options.returnParens
         end
-        if (isChar(options.commentChars)) then
+        if isChar(options.commentChars) then
             result.commentChars = {options.commentChars}
         end
-        if (isTableOfChars(options.commentChars)) then
+        if isTableOfChars(options.commentChars) then
             result.commentChars = options.commentChars
         end
     end
@@ -637,22 +635,19 @@ local function shiftCursorOnEdit(result, lineNo, startIdx, endIdx, replaceTxt)
     end
 end
 
-local function replaceWithinLine(result, lineNo, startIdx, endIdx, replace)
+local function replaceWithinLine(result, lineNo, startIdx, endIdx, replaceTxt)
     local line = result.lines[lineNo]
 
-    if trace then
-        -- print(inspect(result))
-        print("[TRACE] replaceWithinLine")
-    end
+    -- print(lineNo, startIdx, endIdx, 'LLL' .. replaceTxt .. 'LLL')
+    -- print('PPP' .. line .. 'PPP')
 
-    local newLine = replaceWithinString(line, startIdx, endIdx, replace)
+    local newLine = replaceWithinString(line, startIdx, endIdx, replaceTxt)
     result.lines[lineNo] = newLine
 
-    shiftCursorOnEdit(result, lineNo, startIdx, endIdx, replace)
+    -- print('PPP' .. newLine .. 'PPP')
+    -- print('*******************')
 
-    if trace then
-        print("[TRACE] replaceWithinLine finished here")
-    end
+    shiftCursorOnEdit(result, lineNo, startIdx, endIdx, replaceTxt)
 end
 
 local function insertWithinLine(result, lineNo, idx, insert)
@@ -682,16 +677,8 @@ local function commitChar(result, origCh)
     local chLength = strLen(ch)
 
     if origCh ~= ch then
-        if trace then
-            print("[TRACE] calling replaceWithinLine inside commitChar")
-        end
-
         replaceWithinLine(result, result.lineNo, result.x, result.x + origChLength, ch)
         result.indentDelta = result.indentDelta - origChLength - chLength
-    end
-
-    if trace then
-        print("[TRACE] inside commitChar")
     end
 
     result.x = result.x + chLength
@@ -855,10 +842,6 @@ local function onOpenParen(result)
         end
 
         stackPush(result.parenStack, opener)
-
-        -- print(inspect(result.parenStack))
-        -- print('77777777777777777777777777777777777777777777777777777777')
-
         result.trackingArgTabStop = "space"
     end
 end
@@ -876,9 +859,6 @@ local function onMatchedCloseParen(result)
     end
 
     result.parenTrail.endX = result.x + 1
-    --print("add to openers 1")
-    --print(inspect(opener))
-    --print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
     stackPush(result.parenTrail.openers, opener)
 
     if (result.mode == INDENT_MODE and result.smart and checkCursorHolding(result)) then
@@ -1190,6 +1170,7 @@ local function correctParenTrail(result, indentX)
     end
 end
 
+-- PAREN MODE: remove spaces from the paren trail
 local function cleanParenTrail(result)
     local startX = result.parenTrail.startX
     local endX = result.parenTrail.endX
@@ -1210,12 +1191,29 @@ local function cleanParenTrail(result)
             spaceCount = spaceCount + 1
         end
 
+        -- print(endX)
+        -- print(lineCh)
+        -- print(newTrail)
+        -- print(i)
+        -- print('99999999999999999999999999')
+
         i = i + 1
     end
 
     if spaceCount > 0 then
         replaceWithinLine(result, result.lineNo, startX, endX, newTrail)
         result.parenTrail.endX = result.parenTrail.endX - spaceCount
+    end
+end
+
+local function setMaxIndent(result, opener)
+    if opener then
+        local parent = peek(result.parenStack, 0)
+        if parent then
+            parent.maxChildIndent = opener.x
+        else
+            result.maxIndent = opener.x
+        end
     end
 end
 
@@ -1242,17 +1240,6 @@ local function checkUnmatchedOutsideParenTrail(result)
     local cache = result.errorPosCache[ERROR_UNMATCHED_CLOSE_PAREN]
     if (cache and cache.x < result.parenTrail.startX) then
         error(createError(result, ERROR_UNMATCHED_CLOSE_PAREN))
-    end
-end
-
-local function setMaxIndent(result, opener)
-    if opener then
-        local parent = peek(result.parenStack, 0)
-        if parent then
-            parent.maxChildIndent = opener.x
-        else
-            result.maxIndent = opener.x
-        end
     end
 end
 
@@ -1327,21 +1314,13 @@ end
 -- Indentation Functions
 
 local function addIndent(result, delta)
-    if trace then
-        print "[TRACE] addIndent start"
-    end
-
     local origIndent = result.x
     local newIndent = origIndent + delta
-    local indentStr = repeatString(BLANK_SPACE, newIndent)
+    local indentStr = repeatString(BLANK_SPACE, newIndent - 1) -- Lua ONE INDEX
     replaceWithinLine(result, result.lineNo, 1, origIndent, indentStr) -- Lua ONE INDEX
     result.x = newIndent
     result.indentX = newIndent
     result.indentDelta = result.indentDelta + delta
-
-    if trace then
-        print "[TRACE] addIndent end"
-    end
 end
 
 local function shouldAddOpenerIndent(result, opener)
@@ -1514,9 +1493,17 @@ local function processChar(result, ch)
 
     handleChangeDelta(result)
 
+    -- print(inspect(result.lines))
+    -- print('~~~~~~~~~~')
+
     if result.trackingIndent then
+      -- DEBUGGING 2000 - this is where the error is happening
+
         checkIndent(result)
     end
+
+    -- print(inspect(result.lines))
+    -- print('~~~~~~~~~~~~~~~~~~~~')
 
     if result.skipChar then
         result.ch = ""
@@ -1524,15 +1511,11 @@ local function processChar(result, ch)
         onChar(result)
     end
 
-    if trace then
-        print("[TRACE] processChar() before commitChar")
-    end
+    -- print(inspect(result.lines))
+    -- print('xxx' .. ch .. 'xxx' .. result.x .. "xxx" .. result.lineNo)
+    -- print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 
     commitChar(result, origCh)
-
-    if trace then
-        print("[TRACE] processChar() after commitChar")
-    end
 end
 
 local function processLine(result, lineNo)
@@ -1551,44 +1534,17 @@ local function processLine(result, lineNo)
         local ch = getCharFromString(line2, x)
         processChar(result, ch)
 
-        -- print(inspect(result.parenTrail))
-        -- print(x, ch, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
-
         x = x + 1
-
-
-
-
-        -- for _k, v in pairs(result.parenStack) do
-        --   print('{')
-        --   print('argX:', v.argX)
-        --   print('ch:', v.ch)
-        --   print('inputLineNo:', v.inputLineNo)
-        --   print('inputX:', v.inputX)
-        --   print('lineNo:', v.lineNo)
-        --   print('x:', v.x)
-        --   print('}')
-        -- end
-        -- print('****************************************************')
-        -- print('************* ' .. x .. ' ***************************************')
-        -- print('****************************************************')
-
-
-
-
-
-
     end
 
-    if trace then
-        print("[TRACE] processLine() done with char processing")
-    end
+    -- print(inspect(result.lines))
+    -- print('kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
 
     processChar(result, NEWLINE)
 
-    if trace then
-        print("[TRACE] processLine() done with processChar()")
-    end
+    -- print(inspect(result.lines))
+    -- print('jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj')
+    -- print('jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj')
 
     if not result.forceBalance then
         checkUnmatchedOutsideParenTrail(result)
@@ -1675,11 +1631,6 @@ end
 -- Public API
 
 local function publicResult(result)
-    if trace then
-        print("[TRACE] publicResult")
-        print(inspect(result))
-    end
-
     local lineEnding = getLineEnding(result.origText)
     local final = {}
     if result.success then
@@ -1708,7 +1659,7 @@ local function publicResult(result)
             final.parenTrails = nil
         end
 
-        if (result.partialResult and result.returnParens) then
+        if result.partialResult and result.returnParens then
             final.parens = result.parens
         end
     end

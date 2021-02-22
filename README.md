@@ -1,18 +1,23 @@
 # Parinfer in Lua
 
-## TODO:
+The core [Parinfer] algorithm written in Lua.
 
-- [x] set up test suite
-- [x] Indent Mode tests pass
-- [x] Paren Mode tests pass
-- [x] Smart Mode tests pass
-- [ ] support crlf and lf
-- [ ] allow to run a single test id via CLI
-- [ ] additional smart mode tests (adjustable comment chars)
+[Parinfer]:http://shaunlebron.github.io/parinfer/
 
 ## Usage
 
-TODO: write me
+This library mirrors [parinfer.js] nearly 1-for-1. Please see documentation
+there for usage.
+
+Note that this library uses 1 indexes (instead of 0) for things like `options.cursorX`,
+`options.cursorLine`, `changes.lineNo`, etc in order to be compatible with the
+rest of the Lua ecosystem.
+
+The library is a single file (`parinfer.lua`) and has no external dependencies.
+The libraries in the `libs/` folder are for development helpers and to run the
+test suite.
+
+[parinfer.js]:https://github.com/oakmac/parinfer
 
 ## Run Tests
 

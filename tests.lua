@@ -1,3 +1,9 @@
+-- tests.lua: tests for the parinfer.lua library
+--
+-- Copyright (c) 2021, Chris Oakman
+-- Released under the ISC license
+-- https://github.com/oakmac/parinfer-lua/blob/master/LICENSE.md
+
 local lu = require("libs/luaunit")
 local json = require("libs/json")
 local inspect = require("libs/inspect")
